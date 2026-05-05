@@ -1,0 +1,72 @@
+FROM python:3.10-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git curl gcc g++ nodejs npm golang-go && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt
+
+# Clone Caldera with submodules (manx and magma Vue UI come in via --recurse-submodules)
+RUN git clone --depth 1 --branch 5.0.0 --recurse-submodules --shallow-submodules \
+        https://github.com/mitre/caldera.git && \
+    git clone --depth 1 --recursive https://github.com/mitre/caldera-ot.git /tmp/caldera-ot
+
+# Copy OT plugin directories into Caldera's plugins folder
+RUN for plugin in /tmp/caldera-ot/*/; do \
+        name=$(basename "$plugin"); \
+        if [ -d "$plugin" ] && [ "$name" != ".git" ]; then \
+            cp -r "$plugin" /opt/caldera/plugins/"$name"; \
+        fi; \
+    done && \
+    rm -rf /tmp/caldera-ot
+
+# Caldera loads every subdirectory of plugins/ at startup and exits(0) if any
+# lacks a hook.py (happens with uninitialised git submodules). Remove them.
+RUN find /opt/caldera/plugins -mindepth 1 -maxdepth 1 -type d | while read d; do \
+        [ -f "$d/hook.py" ] || rm -rf "$d"; \
+    done
+
+WORKDIR /opt/caldera
+
+# Build the magma Vue UI (required by rest_api.py to serve /assets)
+RUN cd plugins/magma && npm install --legacy-peer-deps && npm run build
+
+# app_svc.py builds the Jinja2 search path from plugin names only, omitting the
+# core templates/ dir where login.html lives. Patch it so all routes resolve.
+RUN python - <<'EOF'
+target = "templates.append('plugins/magma/dist')"
+path = 'app/service/app_svc.py'
+with open(path) as f:
+    src = f.read()
+if target not in src:
+    raise RuntimeError(f"Patch anchor not found in {path} — upstream may have changed")
+src = src.replace(
+    target,
+    target + "\n        templates.append('templates')"
+)
+with open(path, 'w') as f:
+    f.write(src)
+EOF
+
+# contact_tcp.py in Caldera 5.0.0 imports c_session from manx, which was removed
+# in later manx releases. Stub it out so the server starts without TCP agent support.
+RUN printf 'class Session:\n    pass\n' > /opt/caldera/plugins/manx/app/c_session.py
+
+# Install Caldera dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# yarl 1.10+ rejects "host:port" in URL.build(), breaking aiohttp 3.9 route resolution.
+RUN pip install --no-cache-dir 'yarl==1.9.4'
+
+# Build sandcat for the current platform so the agent container can run it natively.
+RUN cd plugins/sandcat/gocat && \
+    { GOOS=linux GOARCH="$(go env GOARCH)" go build -o ../payloads/sandcat-linux . && \
+      echo "sandcat build succeeded"; } || \
+    echo "sandcat build skipped (non-fatal)"
+
+# Copy custom config that enables DNP3 plugin
+COPY config/caldera/local.yml conf/local.yml
+
+EXPOSE 8888 8443
+
+ENTRYPOINT ["python", "server.py"]

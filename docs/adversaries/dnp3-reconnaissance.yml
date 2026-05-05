@@ -1,0 +1,9 @@
+---
+
+id: a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6
+name: DNP3 Reconnaissance
+description: Read-only enumeration of all data points on the outstation (no control commands)
+atomic_ordering:
+  - 1d412b2f-f4ae-3ed2-822e-55a4490a7d1a  # DNP3 (TCP) - Integrity Poll
+  - 8d0889f8-6801-4986-baaf-83622bf08ced  # DNP3 (TCP) - Read All
+  - 689ee6dd-9f24-352f-90da-8d06fae7d19c  # DNP3 (TCP) - Read

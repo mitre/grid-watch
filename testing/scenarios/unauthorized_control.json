@@ -1,0 +1,47 @@
+{
+  "name": "Unauthorized Control",
+  "description": "Issue unauthorized DNP3 DIRECT_OPERATE commands to trip the main breaker (BO[0]) and shut down the generator (BO[1]), disrupting power delivery to the grid.",
+  "attck_tactic": "Impair Process Control (T0855, T0831)",
+  "timestamp": "2026-04-23T16:23:16",
+  "steps": [
+    {
+      "action": "baseline_read",
+      "detail": "Integrity poll \u2014 baseline state captured",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:16"
+    },
+    {
+      "action": "trip_breaker",
+      "detail": "DIRECT_OPERATE BO[0] LATCH_OFF \u2014 trip main breaker",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:16"
+    },
+    {
+      "action": "post_breaker_read",
+      "detail": "Integrity poll after breaker trip \u2014 voltage should be collapsing toward ~0.05 kV (verified by test_adversarial_open_breaker_drops_voltage_to_near_zero)",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:18"
+    },
+    {
+      "action": "stop_generator",
+      "detail": "DIRECT_OPERATE BO[1] LATCH_OFF \u2014 shut down backup generator",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:18"
+    },
+    {
+      "action": "final_read",
+      "detail": "Integrity poll after both attacks \u2014 voltage near zero, full load deficit (verified by test_adversarial_disable_generator_drops_voltage)",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:20"
+    }
+  ],
+  "observations": [
+    "Outstation accepted DIRECT_OPERATE for BO[0] (breaker) without authentication",
+    "Outstation accepted DIRECT_OPERATE for BO[1] (generator) without authentication",
+    "All commands returned RESPONSE \u2014 no access control rejection",
+    "Expected grid impact: bus voltage AI[0] collapsed from ~10-12 kV to ~0.05 kV",
+    "Expected grid impact: power deficit AI[1] increased to full load (~800+ kW)",
+    "State changes visible on outstation terminal monitor (display_loop)"
+  ],
+  "passed": true
+}

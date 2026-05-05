@@ -1,0 +1,10 @@
+---
+
+id: b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e
+name: DNP3 Unauthorized Control
+description: Integrity poll baseline, trip breaker and stop generator via DIRECT_OPERATE, then verify disrupted state
+atomic_ordering:
+  - 1d412b2f-f4ae-3ed2-822e-55a4490a7d1a  # DNP3 (TCP) - Integrity Poll (baseline)
+  - 5a073c32-e022-3724-85ad-7192464287b8  # DNP3 (TCP) - Operate (trip breaker, index 0)
+  - 5a073c32-e022-3724-85ad-7192464287b8  # DNP3 (TCP) - Operate (stop generator, index 1)
+  - 1d412b2f-f4ae-3ed2-822e-55a4490a7d1a  # DNP3 (TCP) - Integrity Poll (verify disrupted state)

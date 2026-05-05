@@ -1,0 +1,39 @@
+---
+
+id: b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e
+name: DNP3 Grid Simulator Facts
+facts:
+
+# CONNECTION FACTS
+
+- trait: dnp3.server.ip # IP address of the outstation
+  value: 127.0.0.1
+- trait: dnp3.local.link # DNP3 link layer address of the local device (int)
+  value: 3
+- trait: dnp3.remote.link # DNP3 link layer address of the remote device (int)
+  value: 1
+- trait: dnp3.data.group # DNP3 datatype (int)
+  value: 1
+- trait: dnp3.data.start # First index to read (int)
+  value: 0
+- trait: dnp3.data.end # Final index to read (int)
+  value: 1
+
+# OPERATE FACTS
+
+- trait: dnp3.operate.indices # Indices to send the CROB to (comma-separated list of ints)
+  value: 0
+- trait: dnp3.operate.indices # Indices to send the CROB to (comma-separated list of ints)
+  value: 1
+- trait: dnp3.operate.mode # DNP3 Operate Mode
+  value: DIRECT_OPERATE
+- trait: dnp3.operate.mode # DNP3 Operate Mode
+  value: SELECT_BEFORE_OPERATE
+- trait: dnp3.operate.type # DNP3 Op Type
+  value: LATCH_ON
+- trait: dnp3.operate.type # DNP3 Op Type
+  value: LATCH_OFF
+- trait: dnp3.operate.tcc # DNP3 Trip Close Code
+  value: NUL
+
+

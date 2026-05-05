@@ -1,0 +1,53 @@
+services:
+  outstation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    networks:
+      - ot-lab
+    ports:
+      - "20000:20000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.create_connection(('localhost',20000),2); s.close()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  caldera:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.caldera
+    networks:
+      - ot-lab
+    ports:
+      - "8888:8888"
+      - "8443:8443"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8888"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.agent
+    networks:
+      - ot-lab
+    depends_on:
+      caldera:
+        condition: service_healthy
+    environment:
+      - CALDERA_SERVER=http://caldera:8888
+      - AGENT_GROUP=red
+
+networks:
+  ot-lab:
+    driver: bridge

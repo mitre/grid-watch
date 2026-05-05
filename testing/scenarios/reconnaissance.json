@@ -1,0 +1,54 @@
+{
+  "name": "Reconnaissance",
+  "description": "Passive enumeration of the DNP3 outstation. Probes the device using integrity polls, class polls, and delay measure to discover data points and timing characteristics.",
+  "attck_tactic": "Collection / Discovery (T0802, T0846)",
+  "timestamp": "2026-04-23T16:23:14",
+  "steps": [
+    {
+      "action": "connect",
+      "detail": "TCP connection established to outstation",
+      "response": "",
+      "timestamp": "2026-04-23T16:23:14"
+    },
+    {
+      "action": "integrity_poll",
+      "detail": "Requested all static data (Class 0, 1, 2, 3)",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:14"
+    },
+    {
+      "action": "class_1_poll",
+      "detail": "Class 1 event poll",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:14"
+    },
+    {
+      "action": "class_2_poll",
+      "detail": "Class 2 event poll",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:14"
+    },
+    {
+      "action": "class_3_poll",
+      "detail": "Class 3 event poll",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:14"
+    },
+    {
+      "action": "delay_measure",
+      "detail": "DELAY_MEASURE request for timing characterization",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:14"
+    }
+  ],
+  "observations": [
+    "Outstation accepted TCP connection without authentication",
+    "Integrity poll returned RESPONSE \u2014 outstation data is readable",
+    "Class polls returned RESPONSE \u2014 event data is accessible",
+    "Delay measure returned RESPONSE \u2014 timing fingerprint obtained",
+    "Outstation exposes: 2 binary inputs (BI), 2 analog inputs (AI), 2 binary outputs (BO) \u2014 per config.yaml",
+    "AI[0] = bus voltage (kV), AI[1] = power deficit (kW)",
+    "BO[0] = breaker control, BO[1] = generator control"
+  ],
+  "passed": true
+}

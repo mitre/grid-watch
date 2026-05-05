@@ -1,0 +1,25 @@
+[tool.black]
+line-length = 88
+target-version = ["py311", "py312"]
+exclude = '''/(\.venv|\.ci_venv_.*)/'''
+
+[tool.ruff]
+line-length = 88
+exclude = [".venv", ".ci_venv_*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+
+[tool.coverage.run]
+source = ["dnp3-sim"]
+omit = ["dnp3-sim/client.py", "dnp3-sim/hmi.py"]
+
+[tool.coverage.report]
+fail_under = 100
+
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "yaml"
+ignore_missing_imports = true

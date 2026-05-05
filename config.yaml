@@ -1,0 +1,17 @@
+server:
+  host: "0.0.0.0"
+  port: 20000
+  dnp3_address: 1
+
+points:
+  binary_inputs:
+    - { index: 0, value: true }   # BreakerStatus
+    - { index: 1, value: true }   # GenStatus
+
+  analog_inputs:
+    - { index: 0, value: 12.47 }  # BusVoltage (kV)
+    - { index: 1, value: 0.0 }    # PowerDeficit (kW)
+
+  binary_outputs:
+    - { index: 0, value: true }   # BreakerControl
+    - { index: 1, value: true }   # GenControl

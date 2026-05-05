@@ -1,0 +1,78 @@
+{
+  "name": "Grid Disruption",
+  "description": "Multi-phase attack to destabilize the grid. Removes backup generation, collapses bus voltage, induces oscillation through rapid breaker toggling, and demonstrates a second collapse using the SELECT/OPERATE command sequence.",
+  "attck_tactic": "Impact (T0826, T0827, T0831)",
+  "timestamp": "2026-04-23T16:23:22",
+  "steps": [
+    {
+      "action": "baseline",
+      "detail": "Integrity poll \u2014 baseline state captured",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:22"
+    },
+    {
+      "action": "disable_generator",
+      "detail": "DIRECT_OPERATE BO[1] LATCH_OFF \u2014 remove backup generation. Expected: voltage sags ~1-2 kV, deficit rises to full load",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:22"
+    },
+    {
+      "action": "open_breaker",
+      "detail": "DIRECT_OPERATE BO[0] LATCH_OFF \u2014 open main breaker. Expected: voltage collapses to ~0.05 kV",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:24"
+    },
+    {
+      "action": "toggle_0",
+      "detail": "DIRECT_OPERATE BO[0] LATCH_ON \u2014 toggle #1",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:26"
+    },
+    {
+      "action": "toggle_1",
+      "detail": "DIRECT_OPERATE BO[0] LATCH_OFF \u2014 toggle #2",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:27"
+    },
+    {
+      "action": "toggle_2",
+      "detail": "DIRECT_OPERATE BO[0] LATCH_ON \u2014 toggle #3",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:27"
+    },
+    {
+      "action": "toggle_3",
+      "detail": "DIRECT_OPERATE BO[0] LATCH_OFF \u2014 toggle #4",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:28"
+    },
+    {
+      "action": "restore_grid",
+      "detail": "Restored grid \u2014 BO[0] LATCH_ON (RESPONSE), BO[1] LATCH_ON (RESPONSE)",
+      "response": "RESPONSE, RESPONSE",
+      "timestamp": "2026-04-23T16:23:28"
+    },
+    {
+      "action": "sbo_trip_breaker",
+      "detail": "SELECT/OPERATE BO[0] LATCH_OFF \u2014 two-step control attack. Expected: second voltage collapse",
+      "response": "select=RESPONSE, operate=RESPONSE",
+      "timestamp": "2026-04-23T16:23:30"
+    },
+    {
+      "action": "final_read",
+      "detail": "Final integrity poll \u2014 grid should be in disrupted state",
+      "response": "RESPONSE",
+      "timestamp": "2026-04-23T16:23:32"
+    }
+  ],
+  "observations": [
+    "Phase 2: Generator disabled \u2014 outstation accepted DIRECT_OPERATE without auth",
+    "Phase 3: Breaker opened \u2014 voltage collapse to ~0.05 kV (verified by test_adversarial_open_breaker_drops_voltage_to_near_zero)",
+    "Phase 4: 4 rapid breaker toggles executed \u2014 induces voltage oscillation between ~0 kV and partial recovery",
+    "Phase 5: Grid restored then re-collapsed via SELECT/OPERATE \u2014 both SBO steps accepted, demonstrating two-step attack viability",
+    "All 10 control commands accepted \u2014 no authentication or rate limiting",
+    "Attack demonstrated both DIRECT_OPERATE and SELECT/OPERATE attack vectors",
+    "State changes visible on outstation terminal monitor (display_loop)"
+  ],
+  "passed": true
+}

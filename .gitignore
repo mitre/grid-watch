@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.DS_Store
+.env
+.python-version
+.ci_venv_*/
+.claude/
+
+# Cloned Caldera repo (from local dev setup)
+caldera/
+
+# Scenario run outputs (JSON results and pcap captures)
+tests/scenarios/*.json
+tests/scenarios/captures/

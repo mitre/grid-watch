@@ -1,0 +1,10 @@
+dnp3py>=0.1.0
+pytest
+pytest-cov
+ruff
+mypy
+black
+pytest-asyncio
+pyyaml>=6.0
+types-PyYAML>=6.0
+matplotlib>=3.8
