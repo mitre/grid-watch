@@ -8,7 +8,7 @@ WORKDIR /opt
 
 # Clone Caldera with submodules (manx and magma Vue UI come in via --recurse-submodules)
 RUN git clone --depth 1 --branch 5.0.0 --recurse-submodules --shallow-submodules \
-        https://github.com/mitre/caldera.git && \
+        https://github.com/apache/caldera.git && \
     git clone --depth 1 --recursive https://github.com/mitre/caldera-ot.git /tmp/caldera-ot
 
 # Copy OT plugin directories into Caldera's plugins folder

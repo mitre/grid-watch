@@ -50,6 +50,6 @@ build an operation using the following abilities in order:
 
 ## See Also
 
-- [MITRE Caldera for OT](https://github.com/mitre/caldera-ot)
+- [Caldera for OT](https://github.com/mitre/caldera-ot)
 - [ATT&CK for ICS - T0855](https://attack.mitre.org/techniques/T0855/)
 - [ATT&CK for ICS - T0831](https://attack.mitre.org/techniques/T0831/)

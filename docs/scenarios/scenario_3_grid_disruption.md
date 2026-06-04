@@ -55,7 +55,7 @@ build an operation using the following abilities in order:
 
 ## See Also
 
-- [MITRE Caldera for OT](https://github.com/mitre/caldera-ot)
+- [Caldera for OT](https://github.com/mitre/caldera-ot)
 - [ATT&CK for ICS - T0826](https://attack.mitre.org/techniques/T0826/)
 - [ATT&CK for ICS - T0827](https://attack.mitre.org/techniques/T0827/)
 - [ATT&CK for ICS - T0831](https://attack.mitre.org/techniques/T0831/)
