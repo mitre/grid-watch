@@ -1,14 +1,14 @@
 # Grid Watch
 
 A simplified simulation of an electrical grid outstation with DNP3 process control.
-Designed to serve as a target for [MITRE Caldera for OT](https://github.com/mitre/caldera-ot).
+Designed to serve as a target for [Caldera for OT](https://github.com/mitre/caldera-ot).
 
 ## Authors
 
 Created by University of Hawaii at Manoa students:
 Yueming Guo, Lewen Lin, Myra Angelica Ortigosa, and Justin Smith
 
-In collaboration with MITRE Caldera for OT ([ot@mitre.org](mailto:ot@mitre.org)).
+In collaboration with Caldera for OT ([ot@mitre.org](mailto:ot@mitre.org)).
 
 ![DNP3 Simulator Terminal Monitor](docs/images/terminal-monitor.png)
 
@@ -56,14 +56,14 @@ Select a component from the menu:
 * **3** - Run the DNP3 test client
 
 The outstation listens on TCP port 20000 and accepts connections from any standard DNP3 master.
-[MITRE Caldera for OT](https://github.com/mitre/caldera-ot) with its DNP3 plugin is recommended
+[Caldera for OT](https://github.com/mitre/caldera-ot) with its DNP3 plugin is recommended
 for adversary emulation, but any DNP3 client (dnp3-actions, pyDNP3, etc.) will work.
 
 ![HMI dashboard](docs/images/hmi.png)
 
 ## Caldera OT Integration
 
-The repo ships a fact source and four adversary profiles for use with [MITRE Caldera for OT](https://github.com/mitre/caldera-ot) and its DNP3 plugin.
+The repo ships a fact source and four adversary profiles for use with [Caldera for OT](https://github.com/mitre/caldera-ot) and its DNP3 plugin.
 
 ### Setup
 
@@ -139,7 +139,7 @@ encoding directly.
 
 ## Acknowledgements
 
-* [MITRE Caldera for OT](https://github.com/mitre/caldera-ot) - adversary emulation framework and DNP3 plugin this simulator is designed to target
+* [Caldera for OT](https://github.com/mitre/caldera-ot) - adversary emulation framework and DNP3 plugin this simulator is designed to target
 * [dnp3py](https://github.com/craigpnnl/dnp3py) - pure-Python DNP3 library used for the outstation and master implementations
 * [MITRE ATT&CK for ICS](https://attack.mitre.org/matrices/ics/) - threat model and tactic/technique taxonomy used in scenario design
 
