@@ -3,6 +3,8 @@
 A simplified simulation of an electrical grid outstation with DNP3 process control.
 Designed to serve as a target for [Caldera for OT](https://github.com/mitre/caldera-ot).
 
+For an overview, read the writeup: [Caldera for OT — Grid Watch: A Virtual DNP3 Electrical Grid Sandbox](https://medium.com/@mitrecaldera/caldera-for-ot-grid-watch-a-virtual-dnp3-electrical-grid-sandbox-761e8c83ab77).
+
 ## Authors
 
 Created by University of Hawaii at Manoa students:
