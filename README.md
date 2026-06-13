@@ -141,7 +141,8 @@ encoding directly.
 
 ## Acknowledgements
 
-* [Caldera for OT](https://github.com/mitre/caldera-ot) - adversary emulation framework and DNP3 plugin this simulator is designed to target
+* [Caldera](https://github.com/apache/caldera) - Automated Adversary Emulation Platform
+* [Caldera for OT](https://github.com/mitre/caldera-ot) - Caldera for OT Plugins & Capabilities
 * [dnp3py](https://github.com/craigpnnl/dnp3py) - pure-Python DNP3 library used for the outstation and master implementations
 * [MITRE ATT&CK for ICS](https://attack.mitre.org/matrices/ics/) - threat model and tactic/technique taxonomy used in scenario design
 
