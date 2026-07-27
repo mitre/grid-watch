@@ -45,6 +45,11 @@ def _crc(data: bytes) -> int:
 _START = bytes([0x05, 0x64])
 _BLOCK_SIZE = 16  # user-data bytes per block before its 2-byte CRC
 _MAX_DATA = 250  # max user-data bytes per link-layer frame (spec limit)
+_MAX_SEGMENT = _MAX_DATA - 1  # app bytes per transport segment (1 byte is the header)
+
+# Transport-header bits: bit7=FIN, bit6=FIR, bits5-0=sequence (0-63)
+_TRANSPORT_FIR = 0x40
+_TRANSPORT_FIN = 0x80
 
 # Control byte values for unconfirmed user data
 _CTRL_PRIMARY = 0xC4  # master  -> outstation  (DIR=1 PRM=1 FCV=0 FCB=0 FC=4)
@@ -119,6 +124,46 @@ def encode_frame(
     # Split into 250-byte chunks; each becomes one link-layer frame
     for i in range(0, max(1, len(app_bytes)), _MAX_DATA):
         result += _encode_single(app_bytes[i : i + _MAX_DATA], dest, src, ctrl)
+    return result
+
+
+def encode_transport_frames(
+    app_bytes: bytes,
+    dest: int = OUTSTATION_ADDR,
+    src: int = MASTER_ADDR,
+    is_response: bool = False,
+) -> bytes:
+    """Segment an app fragment across transport segments, one per link frame.
+
+    Each ≤249-byte segment is prefixed with a 1-byte transport header (FIR on
+    the first, FIN on the last, sequence incrementing mod 64) and wrapped in a
+    single link-layer frame, as required by masters that reassemble the
+    transport layer.  A payload that fits one segment yields a 0xC0 header,
+    matching a plain FIR+FIN single-segment response.
+
+    Args:
+        app_bytes:   Raw DNP3 application-layer payload.
+        dest:        Destination DNP3 address (2 bytes).
+        src:         Source DNP3 address (2 bytes).
+        is_response: True when the outstation is responding to the master.
+
+    Returns:
+        One or more concatenated link-layer frames ready to write to the socket.
+    """
+    ctrl = _CTRL_SECONDARY if is_response else _CTRL_PRIMARY
+    segments = [
+        app_bytes[i : i + _MAX_SEGMENT]
+        for i in range(0, max(1, len(app_bytes)), _MAX_SEGMENT)
+    ]
+    last = len(segments) - 1
+    result = b""
+    for seq, segment in enumerate(segments):
+        header = seq % 64
+        if seq == 0:
+            header |= _TRANSPORT_FIR
+        if seq == last:
+            header |= _TRANSPORT_FIN
+        result += _encode_single(bytes([header]) + segment, dest, src, ctrl)
     return result
 
 

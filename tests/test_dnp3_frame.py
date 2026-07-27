@@ -12,8 +12,10 @@ from dnp3_frame import (
     OUTSTATION_ADDR,
     _BLOCK_SIZE,
     _crc,
+    _encode_single,
     decode_frame,
     encode_frame,
+    encode_transport_frames,
     _frame_wire_size,
 )
 
@@ -136,3 +138,33 @@ def test_decode_frame_roundtrip_large_multiframe():
     app = bytes(range(256))
     framed = encode_frame(app, dest=OUTSTATION_ADDR, src=MASTER_ADDR)
     assert decode_frame(framed) == app
+
+
+# --- encode_transport_frames ---
+
+
+def test_encode_transport_frames_single_segment():
+    """A payload that fits one segment gets a 0xC0 (FIR|FIN) transport header."""
+    app = b"\x81\x00\x00\xde\xad"
+    framed = encode_transport_frames(
+        app, dest=MASTER_ADDR, src=OUTSTATION_ADDR, is_response=True
+    )
+    expected = _encode_single(bytes([0xC0]) + app, MASTER_ADDR, OUTSTATION_ADDR, 0x44)
+    assert framed == expected
+    assert decode_frame(framed) == bytes([0xC0]) + app
+
+
+def test_encode_transport_frames_multi_segment():
+    """A 512-byte payload spans three segments: FIR / middle / FIN headers."""
+    app = bytes(range(256)) * 2  # 512 bytes -> 249 + 249 + 14
+    framed = encode_transport_frames(
+        app, dest=MASTER_ADDR, src=OUTSTATION_ADDR, is_response=True
+    )
+
+    seg0, seg1, seg2 = app[0:249], app[249:498], app[498:512]
+    expected = (
+        _encode_single(bytes([0x40]) + seg0, MASTER_ADDR, OUTSTATION_ADDR, 0x44)
+        + _encode_single(bytes([0x01]) + seg1, MASTER_ADDR, OUTSTATION_ADDR, 0x44)
+        + _encode_single(bytes([0x82]) + seg2, MASTER_ADDR, OUTSTATION_ADDR, 0x44)
+    )
+    assert framed == expected

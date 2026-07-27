@@ -18,10 +18,15 @@ from dnp3.outstation.handler import CommandResult
 from dnp3.transport_io import TcpServer
 from dnp3.transport_io.channel import TcpServerConfig
 
-import _compat  # noqa: F401 — applies dnp3py 0.1.0 qualifier fix on import
 from config import OutstationConfig as SimulatorConfig
 from config import load_config
-from dnp3_frame import OUTSTATION_ADDR, MASTER_ADDR, decode_frame, encode_frame
+from dnp3_frame import (
+    OUTSTATION_ADDR,
+    MASTER_ADDR,
+    decode_frame,
+    encode_frame,
+    encode_transport_frames,
+)
 from process_sim import GridProcessSim
 
 logging.basicConfig(
@@ -283,18 +288,22 @@ async def handle_connection(channel: Any, outstation: Outstation) -> None:
             if has_transport:
                 app_data = app_data[1:]
 
-            response = outstation.process_request(app_data)
-            if response is not None:
-                resp_bytes = response.to_bytes()
+            for frag in outstation.process_request(app_data):
+                resp_bytes = frag.to_bytes()
                 if has_transport:
-                    resp_bytes = bytes([0xC0]) + resp_bytes
-
-                framed = encode_frame(
-                    resp_bytes,
-                    dest=MASTER_ADDR,
-                    src=OUTSTATION_ADDR,
-                    is_response=True,
-                )
+                    framed = encode_transport_frames(
+                        resp_bytes,
+                        dest=MASTER_ADDR,
+                        src=OUTSTATION_ADDR,
+                        is_response=True,
+                    )
+                else:
+                    framed = encode_frame(
+                        resp_bytes,
+                        dest=MASTER_ADDR,
+                        src=OUTSTATION_ADDR,
+                        is_response=True,
+                    )
                 await channel.write_all(framed)
 
     finally:
