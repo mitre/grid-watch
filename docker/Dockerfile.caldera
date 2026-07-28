@@ -64,9 +64,21 @@ RUN cd plugins/sandcat/gocat && \
       echo "sandcat build succeeded"; } || \
     echo "sandcat build skipped (non-fatal)"
 
-# Copy custom config that enables DNP3 plugin
-COPY config/caldera/local.yml conf/local.yml
+# Caldera only calls enable() on plugins listed in the config, and enable() is
+# what sets data_dir so the DNP3 abilities load. Stock default.yml omits dnp3.
+RUN python - <<'EOF'
+import yaml
+path = 'conf/default.yml'
+with open(path) as f:
+    config = yaml.safe_load(f)
+if 'dnp3' not in config['plugins']:
+    config['plugins'].append('dnp3')
+with open(path, 'w') as f:
+    yaml.safe_dump(config, f, default_flow_style=False)
+EOF
 
 EXPOSE 8888 8443
 
-ENTRYPOINT ["python", "server.py"]
+# Without -E the environment defaults to "local" and ensure_local_config()
+# generates conf/local.yml with random secrets on first boot.
+ENTRYPOINT ["python", "server.py", "-E", "default"]

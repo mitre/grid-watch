@@ -14,7 +14,7 @@ set -euo pipefail
 CALDERA_URL="${CALDERA_URL:-http://localhost:8888}"
 OUTSTATION_HOST="${OUTSTATION_HOST:-localhost}"
 OUTSTATION_PORT="${OUTSTATION_PORT:-20000}"
-API_KEY="REDADMIN123"  # matches api_key_red in config/caldera/local.yml
+API_KEY="ADMIN123"  # matches api_key_red in conf/default.yml
 AGENT_PAW=""
 
 RED='\033[0;31m'
