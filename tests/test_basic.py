@@ -97,7 +97,7 @@ def test_outstation_response_has_data():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert len(response.objects) > 0
+    assert len(response[0].objects) > 0
 
 
 # Verifies that updating a binary input is reflected in the next integrity poll.
@@ -113,7 +113,7 @@ def test_update_binary_input_reflected_in_poll():
 
     request = master.build_integrity_poll()
     response = outstation.process_request(request.to_bytes())
-    master.process_response(response.to_bytes())
+    master.process_response(response[0].to_bytes())
 
     assert handler.binary_inputs[0].value is True
 
@@ -142,7 +142,7 @@ def test_outstation_responds_to_delay_measure():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies the DELAY_MEASURE response contains a time-delay object (g52v2).
@@ -157,11 +157,11 @@ def test_delay_measure_response_has_time_object():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert len(response.objects) > 0
+    assert len(response[0].objects) > 0
     # g52v2 - Time Delay Fine
 
-    assert response.objects[0].header.group == 52
-    assert response.objects[0].header.variation == 2
+    assert response[0].objects[0].header.group == 52
+    assert response[0].objects[0].header.variation == 2
 
 
 # --- Class / event polls ---
@@ -179,7 +179,7 @@ def test_outstation_responds_to_class1_poll():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies the outstation responds to a combined Class 1/2/3 poll.
@@ -194,7 +194,7 @@ def test_outstation_responds_to_class_poll_all():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies that a binary input change generates an event visible in a class poll.
@@ -217,7 +217,7 @@ def test_class_poll_returns_events_after_update():
 
     request = master.build_class_poll(class_1=True, class_2=False, class_3=False)
     response = outstation.process_request(request.to_bytes())
-    master.process_response(response.to_bytes())
+    master.process_response(response[0].to_bytes())
 
     assert response is not None
 
@@ -241,7 +241,7 @@ def test_outstation_responds_to_direct_operate():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies DIRECT_OPERATE with LATCH_OFF also returns a valid response.
@@ -260,7 +260,7 @@ def test_direct_operate_latch_off():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies that DIRECT_OPERATE updates the binary output state in the database.
@@ -306,7 +306,7 @@ def test_outstation_responds_to_select():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies a full SELECT -> OPERATE sequence succeeds.
@@ -325,14 +325,14 @@ def test_select_then_operate_succeeds():
     select_request = master.build_select(builder.build_select())
     select_response = outstation.process_request(select_request.to_bytes())
     assert select_response is not None
-    assert select_response.header.function == FunctionCode.RESPONSE
+    assert select_response[0].header.function == FunctionCode.RESPONSE
 
     # Step 2 - OPERATE
 
     operate_request = master.build_operate(builder.build_operate())
     operate_response = outstation.process_request(operate_request.to_bytes())
     assert operate_response is not None
-    assert operate_response.header.function == FunctionCode.RESPONSE
+    assert operate_response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies that OPERATE without a prior SELECT still returns a response
@@ -353,7 +353,7 @@ def test_operate_without_select_returns_response():
     # Must return a response (not None / not crash)
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 # Verifies that a SELECT expires if OPERATE is not sent within the timeout.
@@ -704,7 +704,7 @@ def test_direct_operate_function_code():
     response = outstation.process_request(request.to_bytes())
 
     assert response is not None
-    assert response.header.function == FunctionCode.RESPONSE
+    assert response[0].header.function == FunctionCode.RESPONSE
 
 
 def test_state_persistence_after_direct_operate():

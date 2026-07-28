@@ -362,6 +362,27 @@ def test_truncated_before_count_byte_returns_empty():
     assert pts.analog_inputs == {}
 
 
+def test_truncated_before_0x28_count_returns_empty():
+    """0x28 block with group/var/qualifier but missing 2-byte count → break."""
+    data = _HDR + bytes([30, 1, 0x28])  # 2-byte count absent
+    pts = parse_dnp3_response(data)
+    assert pts.analog_inputs == {}
+
+
+def test_truncated_before_0x00_range_returns_empty():
+    """0x00 block with group/var/qualifier but missing start/stop bytes → break."""
+    data = _HDR + bytes([1, 2, 0x00])  # 1-byte start/stop absent
+    pts = parse_dnp3_response(data)
+    assert pts.binary_inputs == {}
+
+
+def test_truncated_before_0x01_range_returns_empty():
+    """0x01 block with group/var/qualifier but missing 2-byte start/stop → break."""
+    data = _HDR + bytes([10, 2, 0x01])  # 2-byte start/stop absent
+    pts = parse_dnp3_response(data)
+    assert pts.binary_outputs == {}
+
+
 # ---------------------------------------------------------------------------
 # Integration test — requires the simulator server on 127.0.0.1:20000
 # ---------------------------------------------------------------------------

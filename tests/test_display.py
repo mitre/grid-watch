@@ -154,6 +154,16 @@ def test_render_display_snapshot_reflects_updated_value(capsys):
     assert value is True
 
 
+def test_render_display_missing_binary_outputs_returns_prev():
+    """When binary output points are absent, _render_display logs and returns prev."""
+    from dnp3.database import Database
+
+    db = Database()
+    sentinel: dict = {("sentinel", 0): (True, 0)}
+    result = _render_display(db, sentinel)
+    assert result is sentinel
+
+
 # --- display_loop ---
 
 
@@ -405,6 +415,43 @@ async def test_command_listener_processes_all_commands(monkeypatch):
     await command_listener(sim, db)
     # After "pause" then "resume", the sim should not be paused
     assert sim.paused is False
+
+
+@pytest.mark.asyncio
+async def test_command_listener_missing_binary_outputs(monkeypatch, caplog):
+    """'g' and 'b' log an error and continue when binary output points are absent."""
+    import builtins
+    import sys as _sys
+    import os as _os
+    from dnp3.database import Database
+
+    commands = iter(["g", "b"])
+
+    def mock_input() -> str:
+        try:
+            return next(commands)
+        except StopIteration:
+            raise EOFError
+
+    class _MockStdin:
+        def isatty(self) -> bool:
+            return True
+
+        def fileno(self) -> int:
+            return 0
+
+    monkeypatch.setattr(_sys, "stdin", _MockStdin())
+    monkeypatch.setattr(_os, "getpgrp", lambda: 0)
+    monkeypatch.setattr(_os, "tcgetpgrp", lambda fd: 0)
+    monkeypatch.setattr(builtins, "input", mock_input)
+
+    db = Database()
+    sim = GridProcessSim()
+    with caplog.at_level("ERROR"):
+        await command_listener(sim, db)
+
+    assert "binary output 1 not initialized" in caplog.text
+    assert "binary output 0 not initialized" in caplog.text
 
 
 @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-dnp3py>=0.1.0
+dnp3py>=0.3.0
 pytest
 pytest-cov
 ruff
