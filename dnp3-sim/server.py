@@ -36,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
 
+MAX_BUFFER_BYTES = 32768
+
 
 class DatabaseCommandHandler(DefaultCommandHandler):
     def __init__(self, database: Database) -> None:
@@ -281,6 +283,13 @@ async def handle_connection(channel: Any, outstation: Outstation) -> None:
             buf += data
             app_data = decode_frame(buf)
             if not app_data:
+                if len(buf) > MAX_BUFFER_BYTES:
+                    logger.warning(
+                        "Discarding %d buffered bytes from %s: no valid frame",
+                        len(buf),
+                        channel.remote_address,
+                    )
+                    buf = b""
                 continue
             buf = b""
 

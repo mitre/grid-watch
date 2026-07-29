@@ -124,6 +124,71 @@ async def test_process_updates_analog_inputs_continuously():
 
 
 @pytest.mark.asyncio
+async def test_process_updates_binary_inputs_from_controls():
+    """BI[0] and BI[1] must mirror the BO[0]/BO[1] controls after ticks."""
+    cfg = GridSimConfig(tick_seconds=0.01)
+    db = _make_db(breaker=True, generator=True)
+    db.add_binary_input(1, BinaryInputConfig(), value=False)
+    sim = GridProcessSim(cfg=cfg)
+
+    task = asyncio.create_task(sim.run(db))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert db.get_binary_input(0).value is True
+    assert db.get_binary_input(1).value is True
+
+
+@pytest.mark.asyncio
+async def test_binary_input_status_follows_breaker_open():
+    """Opening the breaker via BO[0] must drive BI[0] back to False."""
+    cfg = GridSimConfig(tick_seconds=0.01)
+    db = _make_db(breaker=True, generator=True)
+    sim = GridProcessSim(cfg=cfg)
+
+    task = asyncio.create_task(sim.run(db))
+    await asyncio.sleep(0.05)
+    assert db.get_binary_input(0).value is True
+
+    db.update_binary_output(0, value=False)
+    await asyncio.sleep(0.05)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert db.get_binary_input(0).value is False
+
+
+@pytest.mark.asyncio
+async def test_process_tolerates_missing_binary_inputs():
+    """run() must not fail when the config omits the status points entirely."""
+    cfg = GridSimConfig(tick_seconds=0.01)
+    db = Database()
+    db.add_analog_input(0, AnalogInputConfig(), value=0.0)
+    db.add_analog_input(1, AnalogInputConfig(), value=0.0)
+    db.add_binary_output(0, BinaryOutputConfig(), value=True)
+    db.add_binary_output(1, BinaryOutputConfig(), value=True)
+    sim = GridProcessSim(cfg=cfg)
+
+    task = asyncio.create_task(sim.run(db))
+    await asyncio.sleep(0.05)
+    still_running = not task.done()
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+    assert still_running
+
+
+@pytest.mark.asyncio
 async def test_process_runs_as_background_task():
     """The simulation task must not block the event loop."""
     cfg = GridSimConfig(tick_seconds=0.01)
@@ -397,9 +462,77 @@ async def test_breaker_control_affects_voltage():
 def test_get_display_state_has_all_sections():
     """get_display_state() must return keys for binary_inputs, analog_inputs, binary_outputs."""
     sim = GridProcessSim()
-    state = sim.get_display_state()
+    db = _make_db()
+    state = sim.get_display_state(db)
     assert "binary_inputs" in state
     assert "analog_inputs" in state
     assert "binary_outputs" in state
     assert 0 in state["binary_inputs"]
-    assert 1 in state["binary_inputs"]
+    assert 0 in state["binary_outputs"]
+
+
+def test_get_display_state_reports_database_values_not_cached_state():
+    """Status must come from the database, not from the sim's in-memory fields."""
+    sim = GridProcessSim()
+    db = _make_db()
+
+    db.update_binary_input(0, value=True)
+    db.update_binary_output(0, value=False)
+    sim.breaker_closed = False
+
+    state = sim.get_display_state(db)
+
+    assert state["binary_inputs"][0]["value"] is True
+    assert state["binary_outputs"][0]["value"] is False
+
+
+def test_get_display_state_reports_real_quality():
+    """Quality must reflect the point's actual quality flags, not a hardcoded string."""
+    sim = GridProcessSim()
+    db = _make_db()
+
+    before = sim.get_display_state(db)["binary_inputs"][0]["quality"]
+    db.update_binary_input(0, value=True)
+    after = sim.get_display_state(db)["binary_inputs"][0]["quality"]
+
+    assert before != after, (
+        f"quality should change once a point is updated, got {before!r} both times"
+    )
+    assert "ONLINE" in str(after)
+
+
+def test_get_display_state_reflects_analog_values():
+    """Analog readings must be taken from the database."""
+    sim = GridProcessSim()
+    db = _make_db()
+
+    db.update_analog_input(0, value=11.25)
+    state = sim.get_display_state(db)
+
+    assert state["analog_inputs"][0]["value"] == pytest.approx(11.25)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"tick_seconds": 0.0},
+        {"tick_seconds": -1.0},
+        {"smoothing_alpha": 0.0},
+        {"smoothing_alpha": -0.5},
+        {"smoothing_alpha": 1.5},
+        {"v_nom_kv": 0.0},
+        {"p_load_kw_init": -1.0},
+        {"p_gen_rated_kw": -1.0},
+        {"droop_kv_per_kw": -0.1},
+    ],
+)
+def test_grid_sim_config_rejects_invalid_values(kwargs):
+    """Nonsense simulation parameters must be rejected at construction."""
+    with pytest.raises(ValueError):
+        GridSimConfig(**kwargs)
+
+
+def test_grid_sim_config_accepts_boundary_values():
+    """Valid edge values must still be accepted."""
+    cfg = GridSimConfig(smoothing_alpha=1.0, p_gen_rated_kw=0.0, droop_kv_per_kw=0.0)
+    assert cfg.smoothing_alpha == 1.0

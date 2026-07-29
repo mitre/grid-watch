@@ -307,6 +307,62 @@ async def test_handle_connection_partial_then_eof_continues():
 
 
 @pytest.mark.asyncio
+async def test_handle_connection_discards_oversized_junk_buffer(monkeypatch):
+    """Junk that never decodes must not accumulate without bound."""
+    import server
+
+    db = build_database()
+    outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
+
+    seen: list[int] = []
+    real_decode = server.decode_frame
+
+    def _spy(buf: bytes) -> bytes:
+        seen.append(len(buf))
+        return real_decode(buf)
+
+    monkeypatch.setattr(server, "decode_frame", _spy)
+
+    chunk = b"\x05" * 4096
+    chunks = [chunk] * (server.MAX_BUFFER_BYTES // len(chunk) + 4)
+    channel = _MockChannel(chunks + [b""])
+
+    await handle_connection(channel, outstation)
+
+    assert seen, "decode_frame should have been called"
+    assert max(seen) <= server.MAX_BUFFER_BYTES + len(chunk), (
+        f"buffer grew to {max(seen)} bytes, expected it to be discarded near "
+        f"{server.MAX_BUFFER_BYTES}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handle_connection_valid_frame_after_junk_still_responds():
+    """Clearing the junk buffer must not break a following valid frame."""
+    from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, encode_frame
+    from server import MAX_BUFFER_BYTES
+
+    db = build_database()
+    outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
+    outstation.clear_restart()
+    db.clear_events()
+
+    chunk = b"\x05" * 4096
+    junk = [chunk] * (MAX_BUFFER_BYTES // len(chunk) + 2)
+    frame = encode_frame(
+        bytes([0xC0, 0x01, 0x3C, 0x01, 0x06]),
+        dest=OUTSTATION_ADDR,
+        src=MASTER_ADDR,
+        is_response=False,
+    )
+    channel = _MockChannel(junk + [frame, b""])
+
+    await handle_connection(channel, outstation)
+
+    assert channel.written, "outstation must still answer a valid frame after junk"
+
+
+@pytest.mark.asyncio
 async def test_handle_connection_valid_frame_sends_response():
     """Valid DNP3 frame → decode succeeds → response written."""
     from dnp3.master import Master, DefaultSOEHandler

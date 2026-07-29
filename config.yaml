@@ -5,13 +5,13 @@ server:
 
 points:
   binary_inputs:
-    - { index: 0, value: true }   # BreakerStatus
-    - { index: 1, value: true }   # GenStatus
+    - { index: 0, value: false }  # BreakerStatus
+    - { index: 1, value: false }  # GenStatus
 
   analog_inputs:
     - { index: 0, value: 12.47 }  # BusVoltage (kV)
     - { index: 1, value: 0.0 }    # PowerDeficit (kW)
 
   binary_outputs:
-    - { index: 0, value: true }   # BreakerControl
-    - { index: 1, value: true }   # GenControl
+    - { index: 0, value: false }  # BreakerControl
+    - { index: 1, value: false }  # GenControl

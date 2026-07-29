@@ -292,6 +292,55 @@ points:
         load_config(write_yaml(tmp_path, yaml))
 
 
+def test_load_config_negative_binary_input_index_raises_value_error(tmp_path):
+    yaml = """
+points:
+  binary_inputs:
+    - index: -5
+      value: true
+  analog_inputs: []
+"""
+    with pytest.raises(ValueError, match="must be a non-negative integer"):
+        load_config(write_yaml(tmp_path, yaml))
+
+
+def test_load_config_negative_analog_input_index_raises_value_error(tmp_path):
+    yaml = """
+points:
+  binary_inputs: []
+  analog_inputs:
+    - index: -1
+      value: 1.0
+"""
+    with pytest.raises(ValueError, match="must be a non-negative integer"):
+        load_config(write_yaml(tmp_path, yaml))
+
+
+def test_load_config_negative_binary_output_index_raises_value_error(tmp_path):
+    yaml = """
+points:
+  binary_inputs: []
+  analog_inputs: []
+  binary_outputs:
+    - index: -2
+      value: false
+"""
+    with pytest.raises(ValueError, match="must be a non-negative integer"):
+        load_config(write_yaml(tmp_path, yaml))
+
+
+def test_load_config_zero_index_is_accepted(tmp_path):
+    yaml = """
+points:
+  binary_inputs:
+    - index: 0
+      value: true
+  analog_inputs: []
+"""
+    cfg = load_config(write_yaml(tmp_path, yaml))
+    assert cfg.points.binary_inputs[0].index == 0
+
+
 def test_load_config_duplicate_binary_input_index_raises_value_error(tmp_path):
     yaml = """
 points:

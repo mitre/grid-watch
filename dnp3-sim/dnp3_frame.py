@@ -171,8 +171,9 @@ def decode_frame(data: bytes) -> bytes:
     """Strip DNP3 link-layer framing and return the reassembled app-layer payload.
 
     Processes as many consecutive frames as are present in *data*, validating
-    start bytes and CRCs for each.  Returns b"" if the first frame is invalid
-    or *data* is too short to contain even a header.
+    start bytes and CRCs for each.  Bytes that do not begin a frame are skipped
+    by resynchronizing on the next start-octet pair.  Returns b"" if *data*
+    contains no decodable frame.
     """
     app_bytes = b""
     pos = 0
@@ -182,19 +183,33 @@ def decode_frame(data: bytes) -> bytes:
         if pos + 10 > len(data):
             break
         if data[pos] != 0x05 or data[pos + 1] != 0x64:
-            break
+            # Resynchronize on the next start-octet pair rather than giving up,
+            # so line noise ahead of a frame doesn't wedge the stream.
+            nxt = data.find(_START, pos + 1)
+            if nxt == -1:
+                break
+            pos = nxt
+            continue
 
         # Verify header CRC (covers the 8 bytes before the CRC pair)
         header_end = pos + 8
         if _crc(data[pos:header_end]) != int.from_bytes(
             data[header_end : header_end + 2], "little"
         ):
-            break
+            nxt = data.find(_START, pos + 1)
+            if nxt == -1:
+                break
+            pos = nxt
+            continue
 
         length = data[pos + 2]
         user_data_len = length - 5  # subtract ctrl(1) + dest(2) + src(2)
         if user_data_len < 0:
-            break
+            nxt = data.find(_START, pos + 1)
+            if nxt == -1:
+                break
+            pos = nxt
+            continue
 
         # Decode data blocks for this frame
         block_pos = pos + 10

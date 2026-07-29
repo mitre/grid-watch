@@ -127,6 +127,39 @@ def test_decode_frame_bad_block_crc_returns_empty():
 # --- decode_frame: happy paths (sanity checks) ---
 
 
+def test_decode_frame_resyncs_past_leading_junk():
+    """A stray byte ahead of a valid frame must not hide the frame."""
+    payload = bytes([0xC0, 0x01, 0x3C, 0x01, 0x06])
+    frame = encode_frame(payload, dest=1, src=2, is_response=False)
+    for junk in (b"\x05", b"\x00", b"\x05" * 64, bytes(range(32))):
+        assert decode_frame(junk + frame) == payload
+
+
+def test_decode_frame_resyncs_past_corrupt_leading_frame():
+    """A frame with a bad CRC must not hide a good frame behind it."""
+    payload = bytes([0xC0, 0x01, 0x3C, 0x01, 0x06])
+    frame = encode_frame(payload, dest=1, src=2, is_response=False)
+    corrupt = bytearray(frame)
+    corrupt[8] ^= 0xFF  # break the header CRC
+    assert decode_frame(bytes(corrupt) + frame) == payload
+
+
+def test_decode_frame_resyncs_past_bad_length_frame():
+    """A frame whose length field is too small must not hide a good frame."""
+    payload = bytes([0xC0, 0x01, 0x3C, 0x01, 0x06])
+    frame = encode_frame(payload, dest=1, src=2, is_response=False)
+    hdr = _build_header(length=4)  # user_data_len = -1
+    c = _crc(hdr)
+    bad = hdr + bytes([c & 0xFF, (c >> 8) & 0xFF])
+    assert decode_frame(bad + frame) == payload
+
+
+def test_decode_frame_junk_with_no_frame_returns_empty():
+    """Resync must still give up when there is no frame to find."""
+    assert decode_frame(b"\x05" * 512) == b""
+    assert decode_frame(b"\x05\x64" + b"\x00" * 32) == b""
+
+
 def test_decode_frame_roundtrip_small():
     app = b"\xc0\x01\x00\x00"
     framed = encode_frame(app, dest=OUTSTATION_ADDR, src=MASTER_ADDR)
