@@ -1,6 +1,7 @@
 import asyncio
 import random
 from dataclasses import dataclass
+from enum import IntFlag
 
 from dnp3.database import Database
 
@@ -20,6 +21,28 @@ class GridSimConfig:
     droop_kv_per_kw: float = 0.002
     smoothing_alpha: float = 0.15
 
+    def __post_init__(self) -> None:
+        if self.tick_seconds <= 0:
+            raise ValueError(f"tick_seconds must be > 0, got {self.tick_seconds!r}")
+        if not 0.0 < self.smoothing_alpha <= 1.0:
+            raise ValueError(
+                f"smoothing_alpha must be in (0.0, 1.0], got {self.smoothing_alpha!r}"
+            )
+        if self.v_nom_kv <= 0:
+            raise ValueError(f"v_nom_kv must be > 0, got {self.v_nom_kv!r}")
+        if self.p_load_kw_init < 0:
+            raise ValueError(
+                f"p_load_kw_init must be >= 0, got {self.p_load_kw_init!r}"
+            )
+        if self.p_gen_rated_kw < 0:
+            raise ValueError(
+                f"p_gen_rated_kw must be >= 0, got {self.p_gen_rated_kw!r}"
+            )
+        if self.droop_kv_per_kw < 0:
+            raise ValueError(
+                f"droop_kv_per_kw must be >= 0, got {self.droop_kv_per_kw!r}"
+            )
+
 
 class GridProcessSim:
     """Simplified electrical grid process simulation.
@@ -36,19 +59,30 @@ class GridProcessSim:
     that depends on breaker/gen/load.
     """
 
-    def get_display_state(self) -> dict[str, dict[int, dict[str, bool | float | str]]]:
+    @staticmethod
+    def _quality(quality: IntFlag) -> str:
+        parts = [flag.name or hex(int(flag)) for flag in quality]
+        return "|".join(parts) if parts else "NONE"
+
+    def get_display_state(
+        self, db: Database
+    ) -> dict[str, dict[int, dict[str, bool | float | str]]]:
+        """Snapshot every configured point straight from the outstation database."""
         return {
             "binary_inputs": {
-                0: {"value": self.breaker_closed, "quality": "ONLINE"},
-                1: {"value": self.generator_on, "quality": "ONLINE"},
+                pt.index: {"value": bool(pt.value), "quality": self._quality(pt.quality)}
+                for pt in db.get_all_binary_inputs()
             },
             "analog_inputs": {
-                0: {"value": self.v_kv, "quality": "ONLINE"},
-                1: {"value": self.p_def_kw, "quality": "ONLINE"},
+                pt.index: {
+                    "value": float(pt.value),
+                    "quality": self._quality(pt.quality),
+                }
+                for pt in db.get_all_analog_inputs()
             },
             "binary_outputs": {
-                0: {"value": self.breaker_closed, "quality": "ONLINE"},
-                1: {"value": self.generator_on, "quality": "ONLINE"},
+                pt.index: {"value": bool(pt.value), "quality": self._quality(pt.quality)}
+                for pt in db.get_all_binary_outputs()
             },
         }
 
@@ -91,6 +125,11 @@ class GridProcessSim:
     @staticmethod
     def _set_ai(db: Database, index: int, value: float) -> None:
         db.update_analog_input(index, value=float(value))
+
+    @staticmethod
+    def _set_bi(db: Database, index: int, value: bool) -> None:
+        if db.get_binary_input(index) is not None:
+            db.update_binary_input(index, value=bool(value))
 
     def _update_load(self) -> None:
         # Random-walk load, clamped to a reasonable range
@@ -141,5 +180,7 @@ class GridProcessSim:
             # Publish sensors into the outstation database in real time
             self._set_ai(db, 0, self.v_kv)
             self._set_ai(db, 1, p_def)
+            self._set_bi(db, 0, breaker_closed)
+            self._set_bi(db, 1, generator_on)
 
             await asyncio.sleep(self.cfg.tick_seconds)

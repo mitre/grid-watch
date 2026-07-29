@@ -214,6 +214,10 @@ def _require_int(d: dict[str, Any], key: str, ctx: str, source: str) -> int:
     val = d[key]
     if not isinstance(val, int) or isinstance(val, bool):
         raise ValueError(f"[{source}] {ctx}.{key} must be an integer, got {val!r}")
+    if val < 0:
+        raise ValueError(
+            f"[{source}] {ctx}.{key} must be a non-negative integer, got {val!r}"
+        )
     return val
 
 
