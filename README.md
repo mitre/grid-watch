@@ -25,6 +25,7 @@ protocol interactions without physical hardware.
 ### Dependencies
 
 * Python 3.11+
+   * Requires the tkinter package ([Installation - TKDocs](https://tkdocs.com/tutorial/install.html))
 * dnp3py, pyyaml, matplotlib (see requirements.txt)
 
 ### Installation
