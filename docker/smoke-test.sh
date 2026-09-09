@@ -127,6 +127,7 @@ OP_RESP=$(curl -sf -X POST -H "KEY:${API_KEY}" \
         \"group\": \"red\",
         \"auto_close\": true,
         \"source\": {
+            \"id\": \"smoke-test-source\",
             \"name\": \"DNP3 Smoke Test Source\",
             \"facts\": [
                 {\"trait\": \"dnp3.server.ip\", \"value\": \"outstation\"},

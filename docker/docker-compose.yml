@@ -7,6 +7,13 @@ services:
       - ot-lab
     ports:
       - "20000:20000"
+      # Wireshark sidecar's desktop GUI (3000 http, 3001 https). Published
+      # here (not on the wireshark service itself) because network_mode:
+      # "service:outstation" means it shares this container's network
+      # namespace and can't publish its own ports. Bound to localhost only -
+      # the image ships with no built-in auth.
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3001"
     healthcheck:
       test:
         [
@@ -39,6 +46,12 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.agent
+    # The DNP3 plugin's Linux action payload is a dynamically-linked amd64
+    # glibc binary with no arm64 build wired into its ability definitions.
+    # Pin the whole container to amd64 so Docker Desktop's Rosetta/QEMU
+    # emulates a real x86_64 glibc environment for it, rather than running
+    # arm64-native with just that one foreign binary lacking a linker.
+    platform: linux/amd64
     networks:
       - ot-lab
     depends_on:
@@ -48,6 +61,51 @@ services:
       - CALDERA_SERVER=http://caldera:8888
       - AGENT_GROUP=red
 
+  # Packet capture sidecar: a full Wireshark desktop GUI, browser-accessible
+  # at https://127.0.0.1:3001 (see linuxserver/wireshark on Docker Hub).
+  # Shares the outstation container's network namespace (not the ot-lab
+  # network directly) because a Linux bridge only forwards unicast frames to
+  # their destination port - a third container attached to ot-lab would
+  # never see agent<->outstation traffic. Sitting in outstation's namespace
+  # instead captures everything hitting it, including DNP3 attack traffic
+  # from agent and connections from host-side DNP3 clients via the
+  # published 20000 port. Opt in with --profile capture.
+  capture:
+    image: lscr.io/linuxserver/wireshark:latest
+    profiles:
+      - capture
+    network_mode: "service:outstation"
+    depends_on:
+      - outstation
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    shm_size: "1gb"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      # This image's desktop session is a nested Wayland setup: the Python
+      # "selkies" streaming process is the actual (outer) compositor, and
+      # labwc runs as a client connecting to it as a virtual display server,
+      # both via a socket under $XDG_RUNTIME_DIR, which an init script
+      # unconditionally sets to $HOME/.XDG (i.e. /config/.XDG) - overriding
+      # XDG_RUNTIME_DIR ourselves doesn't stick, that script always wins.
+      # Unix domain sockets are unreliable over Docker Desktop for Mac's
+      # bind-mount filesystem (virtiofs/osxfs): the socket "exists" but
+      # connections to it fail, so labwc's backend can't start and nothing
+      # (Wireshark included) ever renders - a black screen with no error.
+      # Fix: keep /config itself off the bind-mount filesystem (a named
+      # volume instead, which lives on the VM's real filesystem and doesn't
+      # have this problem), and bind-mount only the Desktop subfolder - where
+      # saved/downloaded files actually land - so captures stay host-readable.
+      - wireshark-config:/config
+      - ./captures:/config/Desktop
+
 networks:
   ot-lab:
     driver: bridge
+
+volumes:
+  wireshark-config:

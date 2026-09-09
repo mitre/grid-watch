@@ -101,6 +101,30 @@ docker compose -f docker/docker-compose.yml up --build
 * **Caldera UI**: http://localhost:8888 (login: `admin` / `admin`)
 * **DNP3 Outstation**: `localhost:20000`
 
+### Packet Capture (Wireshark)
+
+An optional `capture` sidecar runs a full Wireshark desktop, accessible from a browser at
+[https://127.0.0.1:3001](https://127.0.0.1:3001) (plain HTTP on `3000`), via
+[`linuxserver/wireshark`](https://hub.docker.com/r/linuxserver/wireshark). It shares the
+`outstation` container's network namespace rather than joining the `ot-lab` network directly -
+a Linux bridge only delivers unicast frames to their destination port, so a third container on
+`ot-lab` would never see traffic addressed to `outstation`. Sitting in its namespace instead
+captures everything sent to or from it: DNP3 attack traffic from `agent`, and connections from
+any host-side DNP3 client hitting the published `20000` port.
+
+It's gated behind a Compose profile so it doesn't run by default:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build -d
+docker compose -f docker/docker-compose.yml --profile capture up -d capture
+```
+
+Open [https://127.0.0.1:3001](https://127.0.0.1:3001) (click through the self-signed
+certificate warning) - Wireshark launches automatically, ready to start a capture on `eth0`.
+The ports are bound to `127.0.0.1` only, since the image has no built-in auth. Anything you
+save from the GUI to `~/Desktop` persists on the host under `docker/captures/` (ignored by
+git); the rest of the desktop's config lives in a Docker volume, not on the host.
+
 ## DNP3 Point Map
 
 ### Analog Inputs (Read)
