@@ -6,7 +6,7 @@ is visible in Wireshark on port 20000.
 
 Usage:
     python run.py          (option 2)
-    python dnp3-sim/hmi.py [--host 127.0.0.1] [--port 20000]
+    python dnp3-sim/hmi.py [--host 127.0.0.1] [--port 20000] [--web] [--web-port 8090]
 """
 
 from __future__ import annotations
@@ -25,6 +25,11 @@ from typing import Any
 
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import matplotlib
+
+if "--web" in sys.argv:
+    matplotlib.use("WebAgg")
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -501,7 +506,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Live HMI for DNP3 grid simulator")
     parser.add_argument("--host", default="127.0.0.1", help="Outstation host")
     parser.add_argument("--port", type=int, default=20000, help="DNP3 port")
+    parser.add_argument("--web", action="store_true", help="Serve the HMI in a browser (WebAgg)")
+    parser.add_argument("--web-port", type=int, default=8090, help="Web HMI port (default 8090)")
     args = parser.parse_args()
+
+    if args.web:
+        plt.rcParams["webagg.address"] = "0.0.0.0"
+        plt.rcParams["webagg.port"] = args.web_port
+        plt.rcParams["webagg.open_in_browser"] = False
 
     state = GridState()
     lock = threading.Lock()

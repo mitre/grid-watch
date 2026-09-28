@@ -10,6 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY dnp3-sim/ dnp3-sim/
 COPY config.yaml .
 
-EXPOSE 20000
+EXPOSE 20000 8090
 
 ENTRYPOINT ["python", "dnp3-sim/server.py"]
