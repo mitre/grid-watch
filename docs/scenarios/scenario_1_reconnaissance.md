@@ -6,15 +6,17 @@
 |---|---|
 | **Tactic** | Collection, Discovery |
 | **Techniques** | [T0802 - Automated Collection](https://attack.mitre.org/techniques/T0802/), [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/) |
-| **Target** | DNP3 outstation on TCP :20000 |
+| **Target** | Grid Watch outstation over DNP3 |
 | **Impact** | None - read-only operations only |
 
 ## Objective
 
-Discover all data points exposed by the DNP3 outstation without issuing any
-control commands. An adversary can fully enumerate the device's data model
-using standard read operations that are indistinguishable from legitimate
-master station traffic.
+Read all data points on the Grid Watch outstation without issuing any control
+commands. This gives a baseline view of the breaker and generator controls,
+their status inputs, the bus voltage, and the power deficit exposed by the
+outstation.
+
+![Grid Watch HMI baseline state](../images/scenario-1-reconnaissance.png)
 
 ## Fact Variables
 
@@ -29,7 +31,7 @@ master station traffic.
 
 ## Caldera Operation
 
-Load `docs/sources/grid-simulator-facts.yml` as the fact source, then
+Load `docs/sources/grid-watch-simulator-facts.yml` as the fact source, then
 build an operation using the following abilities in order:
 
 | Step | Ability | Ability ID | Facts Used |
@@ -42,15 +44,13 @@ build an operation using the following abilities in order:
 
 ## Expected Observations
 
-- Outstation accepts TCP connection without authentication (T0861)
-- Integrity poll returns all static data - 2 binary inputs, 2 analog inputs, 2 binary outputs
-- `AI[0]` = bus voltage (~10–12 kV with breaker closed and generator on)
-- `AI[1]` = power deficit (~200–800 kW depending on generator state)
-- `BO[0]` = breaker control, `BO[1]` = generator control - both readable without access control (T0802)
-- Step 3: Targeted read of group 1, indices 0–1 enumerates specific binary input points (T0861)
-- No alarms triggered by read-only operations
-
-![HMI during reconnaissance - normal operation unaffected](../images/scenario-1-reconnaissance.png)
+- The outstation accepts a TCP connection without authentication.
+- The integrity poll returns all static data: 2 binary inputs, 2 analog inputs, and 2 binary outputs.
+- `AI[0]` reads bus voltage, roughly 10 to 12 kV with the breaker closed and the generator on.
+- `AI[1]` reads power deficit, roughly 200 to 800 kW depending on generator state.
+- `BO[0]` is the breaker control and `BO[1]` is the generator control, both readable without access control.
+- The targeted read of group 1, indices 0 and 1, enumerates specific binary input points.
+- Read-only operations trigger no alarms.
 
 ## See Also
 

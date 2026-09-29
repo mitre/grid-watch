@@ -6,14 +6,16 @@
 |---|---|
 | **Tactic** | Impact, Collection, Inhibit Response Function |
 | **Techniques** | [T0855 - Unauthorized Command Message](https://attack.mitre.org/techniques/T0855/), [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/), [T0816 - Device Restart/Shutdown](https://attack.mitre.org/techniques/T0816/) |
-| **Target** | DNP3 outstation on TCP :20000 |
+| **Target** | Grid Watch outstation over DNP3 |
 | **Impact** | Operate breaker/generator controls then verify state changes via read-back |
 
 ## Objective
 
-Combine a control operation with an immediate read-back verification chain.
-Demonstrates that an attacker can not only send commands but confirm their
-effect without any authentication.
+Operate the breaker and generator controls, then read the outstation back to
+confirm the change. The operate command and every read run without
+authentication.
+
+![Grid Watch HMI grid attack and verify state](../images/scenario-4-grid-attack-and-verify.png)
 
 ## Fact Variables
 
@@ -32,26 +34,24 @@ effect without any authentication.
 
 ## Caldera Operation
 
-Load `docs/sources/grid-simulator-facts.yml` as the fact source, then
+Load `docs/sources/grid-watch-simulator-facts.yml` as the fact source, then
 build an operation using the following abilities in order:
 
-| Step | Ability | Ability ID | Description |
-|------|---------|------------|-------------|
-| 1 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | Send CROB to breaker/generator controls |
-| 2 | DNP3 (TCP) - Read | `689ee6dd-9f24-352f-90da-8d06fae7d19c` | Read back a specific group/range to verify |
-| 3 | DNP3 (TCP) - Read All | `8d0889f8-6801-4986-baaf-83622bf08ced` | Read all points in a group |
-| 4 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | Full Class 0 poll of all data |
-| 5 | DNP3 (TCP) - Warm Restart | `fe8403ab-e37c-40b6-8f0e-6b0b4192f675` | Reset the outstation |
+| Step | Ability | Ability ID | Facts Used |
+|------|---------|------------|------------|
+| 1 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `dnp3.operate.indices`, `dnp3.operate.mode`, `dnp3.operate.type`, `dnp3.operate.tcc` |
+| 2 | DNP3 (TCP) - Read | `689ee6dd-9f24-352f-90da-8d06fae7d19c` | `dnp3.data.group`, `dnp3.data.start`, `dnp3.data.end` |
+| 3 | DNP3 (TCP) - Read All | `8d0889f8-6801-4986-baaf-83622bf08ced` | `dnp3.data.group` |
+| 4 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | `dnp3.server.ip`, `dnp3.local.link`, `dnp3.remote.link` |
+| 5 | DNP3 (TCP) - Warm Restart | `fe8403ab-e37c-40b6-8f0e-6b0b4192f675` | `dnp3.server.ip`, `dnp3.local.link`, `dnp3.remote.link` |
 
 ## Expected Observations
 
-- Step 1: Control command accepted without authentication (T0855) - breaker or generator state changes
-- Step 2: Targeted read confirms the operated point reflects the new state (T0861)
-- Step 3: Read All returns all points in the group, showing the full updated picture
-- Step 4: Integrity poll shows updated binary outputs, binary inputs, and analog inputs
-- Step 5: Warm restart accepted without authentication (T0816) - outstation reinitializes and returns to default state
-
-![HMI during grid attack and verify](../images/scenario-4-grid-attack-verify.png)
+- The outstation accepts the control command without authentication and the breaker or generator state changes.
+- The targeted read confirms the operated point reflects the new state.
+- Read All returns every point in the group with the full updated picture.
+- The integrity poll shows the updated binary outputs, binary inputs, and analog inputs.
+- The outstation accepts the warm restart without authentication, reinitializes, and returns to its default state.
 
 ## See Also
 

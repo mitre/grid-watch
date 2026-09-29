@@ -1,0 +1,40 @@
+---
+
+id: b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e
+name: Grid Watch Facts
+facts:
+
+# DNP3 CONNECTION FACTS
+
+- trait: dnp3.server.ip # IP address of the outstation
+  value: 127.0.0.1
+- trait: dnp3.local.link # Link address of the master
+  value: 3
+- trait: dnp3.remote.link # Link address of the outstation
+  value: 1
+
+# DNP3 READ FACTS
+
+- trait: dnp3.data.group # Object group to read
+  value: 1
+- trait: dnp3.data.start # First index to read
+  value: 0
+- trait: dnp3.data.end # Last index to read
+  value: 1
+
+# DNP3 WRITE FACTS
+
+- trait: dnp3.operate.indices # Breaker
+  value: 0
+- trait: dnp3.operate.indices # Generator
+  value: 1
+- trait: dnp3.operate.mode # Direct operate
+  value: DIRECT_OPERATE
+- trait: dnp3.operate.mode # Select before operate
+  value: SELECT_BEFORE_OPERATE
+- trait: dnp3.operate.type # Latch on
+  value: LATCH_ON
+- trait: dnp3.operate.type # Latch off
+  value: LATCH_OFF
+- trait: dnp3.operate.tcc # Trip close code
+  value: NUL
