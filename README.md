@@ -74,7 +74,7 @@ The files below are templates - copy them into your Caldera DNP3 plugin director
 
 | Template | Destination |
 |---|---|
-| `docs/sources/grid-simulator-facts.yml` | `plugins/dnp3/data/sources/` |
+| `docs/sources/grid-watch-simulator-facts.yml` | `plugins/dnp3/data/sources/` |
 | `docs/adversaries/dnp3-reconnaissance.yml` | `plugins/dnp3/data/adversaries/` |
 | `docs/adversaries/dnp3-unauthorized-control.yml` | `plugins/dnp3/data/adversaries/` |
 | `docs/adversaries/dnp3-grid-disruption.yml` | `plugins/dnp3/data/adversaries/` |
@@ -86,10 +86,10 @@ Restart Caldera after copying so it picks up the new files.
 
 | Adversary | Scenario | Description |
 |---|---|---|
-| DNP3 Reconnaissance | [Scenario 1](docs/scenarios/scenario_1_reconnaissance.md) | Read-only enumeration of all outstation data points |
-| DNP3 Unauthorized Control | [Scenario 2](docs/scenarios/scenario_2_unauthorized_control.md) | Trip breaker and stop generator via `DIRECT_OPERATE` |
-| DNP3 Grid Disruption | [Scenario 3](docs/scenarios/scenario_3_grid_disruption.md) | Multi-phase attack using `DIRECT_OPERATE` and `SELECT_BEFORE_OPERATE` |
-| DNP3 Grid Attack and Verify | [Scenario 4](docs/scenarios/scenario_4_grid_attack_and_verify.md) | Full operate + read-back verification chain |
+| Grid Watch DNP3 Reconnaissance | [Scenario 1](docs/scenarios/scenario_1_reconnaissance.md) | Read-only enumeration of all outstation data points |
+| Grid Watch DNP3 Unauthorized Control | [Scenario 2](docs/scenarios/scenario_2_unauthorized_control.md) | Trip breaker and stop generator via `DIRECT_OPERATE` |
+| Grid Watch DNP3 Grid Disruption | [Scenario 3](docs/scenarios/scenario_3_grid_disruption.md) | Multi-phase run using `DIRECT_OPERATE` and `SELECT_BEFORE_OPERATE` |
+| Grid Watch DNP3 Grid Attack and Verify | [Scenario 4](docs/scenarios/scenario_4_grid_attack_and_verify.md) | Full operate + read-back verification chain |
 
 ### Docker
 
