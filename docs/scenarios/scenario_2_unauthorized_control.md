@@ -6,14 +6,16 @@
 |---|---|
 | **Tactic** | Impair Process Control |
 | **Techniques** | [T0855 - Unauthorized Command Message](https://attack.mitre.org/techniques/T0855/), [T0831 - Manipulation of Control](https://attack.mitre.org/techniques/T0831/) |
-| **Target** | DNP3 outstation on TCP :20000 |
+| **Target** | Grid Watch outstation over DNP3 |
 | **Impact** | Bus voltage collapse, full power deficit |
 
 ## Objective
 
-Issue unauthorized DIRECT_OPERATE commands to trip the main breaker and shut
-down the backup generator. The outstation accepts both commands without
-authentication. The grid process simulation reacts immediately.
+Send DIRECT_OPERATE commands to trip the breaker and stop the generator. The
+outstation runs both without authentication and the grid simulation reacts at
+once: bus voltage collapses and the power deficit rises.
+
+![Grid Watch HMI unauthorized control state](../images/scenario-2-unauthorized-control.png)
 
 ## Fact Variables
 
@@ -29,11 +31,11 @@ authentication. The grid process simulation reacts immediately.
 
 ## Caldera Operation
 
-Load `docs/sources/grid-simulator-facts.yml` as the fact source, then
+Load `docs/sources/grid-watch-simulator-facts.yml` as the fact source, then
 build an operation using the following abilities in order:
 
-| Step | Ability | Ability ID | Key Facts |
-|------|---------|------------|-----------|
+| Step | Ability | Ability ID | Facts Used |
+|------|---------|------------|------------|
 | 1 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | Baseline read |
 | 2 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=DIRECT_OPERATE`, `type=LATCH_OFF`, `tcc=NUL` |
 | 3 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=1`, `mode=DIRECT_OPERATE`, `type=LATCH_OFF`, `tcc=NUL` |
@@ -41,12 +43,10 @@ build an operation using the following abilities in order:
 
 ## Expected Observations
 
-- Step 2: Breaker trips (T0855) - `BO[0]` goes to LATCH_OFF, `AI[0]` collapses from ~10–12 kV to ~0.05 kV
-- Step 3: Generator stops (T0831) - `BO[1]` goes to LATCH_OFF, `AI[1]` rises to full load (~800+ kW)
-- Step 4: Integrity poll confirms disrupted grid state
-- All commands accepted without authentication or access control rejection
-
-![HMI after voltage collapse](../images/scenario-2-voltage-collapse.png)
+- The breaker trips: `BO[0]` goes to LATCH_OFF and `AI[0]` collapses from roughly 10 to 12 kV down to about 0.05 kV.
+- The generator stops: `BO[1]` goes to LATCH_OFF and `AI[1]` rises to full load, about 800+ kW.
+- The integrity poll confirms the disrupted grid state.
+- The outstation accepts every command without authentication.
 
 ## See Also
 
