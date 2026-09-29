@@ -19,6 +19,19 @@ services:
       timeout: 3s
       retries: 5
 
+  web-hmi:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    entrypoint: ["python", "dnp3-sim/hmi.py", "--web", "--host", "outstation", "--port", "20000", "--web-port", "8090"]
+    networks:
+      - ot-lab
+    ports:
+      - "8090:8090"
+    depends_on:
+      outstation:
+        condition: service_healthy
+
   caldera:
     build:
       context: ..

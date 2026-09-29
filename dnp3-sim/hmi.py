@@ -6,7 +6,7 @@ is visible in Wireshark on port 20000.
 
 Usage:
     python run.py          (option 2)
-    python dnp3-sim/hmi.py [--host 127.0.0.1] [--port 20000]
+    python dnp3-sim/hmi.py [--host 127.0.0.1] [--port 20000] [--web] [--web-port 8090]
 """
 
 from __future__ import annotations
@@ -25,6 +25,11 @@ from typing import Any
 
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import matplotlib
+
+if "--web" in sys.argv:
+    matplotlib.use("WebAgg")
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -497,11 +502,61 @@ def draw_status(ax: Axes, s: GridState) -> None:
         y -= 0.11
 
 
+def _webagg_fill_window():
+    # Size the WebAgg figure to the browser window instead of a fixed canvas
+    # that scrolls. mpl.js already re-renders the figure when its canvas
+    # container resizes, so we just size that container to the window.
+    import io
+    from matplotlib.backends import backend_webagg_core as wac
+
+    js = """
+(function(){
+  function fit(){
+    var c=document.querySelector('.mpl-canvas');if(!c)return false;
+    var cd=c.parentElement;
+    var de=document.documentElement;de.style.height='100%';de.style.overflow='hidden';
+    var b=document.body.style;b.margin='0';b.height='100%';b.overflow='hidden';
+    var figs=document.getElementById('figures');if(figs)figs.style.margin='0';
+    var root=document.getElementById('figure-div');if(root){root.style.display='block';root.style.width='100%';}
+    if(cd.parentElement){cd.parentElement.style.display='block';cd.parentElement.style.width='100%';}
+    cd.style.width=Math.max(200,window.innerWidth-2)+'px';
+    cd.style.height=Math.max(150,window.innerHeight-84)+'px';
+    return true;
+  }
+  window.addEventListener('resize',fit);
+  var done=0,n=0,iv=setInterval(function(){
+    var c=document.querySelector('.mpl-canvas');n++;
+    if(c&&c.width>0){fit();if(++done>=3)clearInterval(iv);}
+    if(n>200)clearInterval(iv);
+  },150);
+})();
+"""
+    orig = wac.FigureManagerWebAgg.get_javascript.__func__
+
+    def patched(cls, stream=None):
+        buf = io.StringIO()
+        orig(cls, buf)
+        out = buf.getvalue() + js
+        if stream is None:
+            return out
+        stream.write(out)
+
+    wac.FigureManagerWebAgg.get_javascript = classmethod(patched)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Live HMI for DNP3 grid simulator")
     parser.add_argument("--host", default="127.0.0.1", help="Outstation host")
     parser.add_argument("--port", type=int, default=20000, help="DNP3 port")
+    parser.add_argument("--web", action="store_true", help="Serve the HMI in a browser (WebAgg)")
+    parser.add_argument("--web-port", type=int, default=8090, help="Web HMI port (default 8090)")
     args = parser.parse_args()
+
+    if args.web:
+        plt.rcParams["webagg.address"] = "0.0.0.0"
+        plt.rcParams["webagg.port"] = args.web_port
+        plt.rcParams["webagg.open_in_browser"] = False
+        _webagg_fill_window()
 
     state = GridState()
     lock = threading.Lock()
