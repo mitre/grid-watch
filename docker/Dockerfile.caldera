@@ -7,7 +7,7 @@ RUN apt-get update && \
 WORKDIR /opt
 
 # Clone Caldera with submodules (manx and magma Vue UI come in via --recurse-submodules)
-RUN git clone --depth 1 --branch 5.0.0 --recurse-submodules --shallow-submodules \
+RUN git clone --depth 1 --branch 5.3.0 --recurse-submodules --shallow-submodules \
         https://github.com/apache/caldera.git && \
     git clone --depth 1 --recursive https://github.com/mitre/caldera-ot.git /tmp/caldera-ot
 
@@ -54,9 +54,6 @@ RUN printf 'class Session:\n    pass\n' > /opt/caldera/plugins/manx/app/c_sessio
 
 # Install Caldera dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-
-# yarl 1.10+ rejects "host:port" in URL.build(), breaking aiohttp 3.9 route resolution.
-RUN pip install --no-cache-dir 'yarl==1.9.4'
 
 # Build sandcat for the current platform so the agent container can run it natively.
 RUN cd plugins/sandcat/gocat && \
