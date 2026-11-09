@@ -6,14 +6,17 @@
 |---|---|
 | **Tactic** | Impact |
 | **Techniques** | [T0826 - Loss of Availability](https://attack.mitre.org/techniques/T0826/), [T0827 - Loss of Control](https://attack.mitre.org/techniques/T0827/), [T0831 - Manipulation of Control](https://attack.mitre.org/techniques/T0831/) |
-| **Target** | DNP3 outstation on TCP :20000 |
+| **Target** | Grid Watch outstation over DNP3 |
 | **Impact** | Multi-phase grid destabilization via both DIRECT_OPERATE and SELECT_BEFORE_OPERATE |
 
 ## Objective
 
-A multi-phase attack that destabilizes the grid and demonstrates two distinct
-DNP3 command paths - DIRECT_OPERATE and SELECT_BEFORE_OPERATE (SBO) - both
-accepted by the outstation without authentication.
+Run a multi-step sequence over both DNP3 command paths, DIRECT_OPERATE and
+SELECT_BEFORE_OPERATE. Stop the generator and trip the breaker, restore both,
+then trip the breaker again over SELECT_BEFORE_OPERATE. The outstation runs
+every command without authentication.
+
+![Grid Watch HMI grid disruption state](../images/scenario-3-grid-disruption.png)
 
 ## Fact Variables
 
@@ -29,29 +32,27 @@ accepted by the outstation without authentication.
 
 ## Caldera Operation
 
-Load `docs/sources/grid-simulator-facts.yml` as the fact source, then
+Load `docs/sources/grid-watch-simulator-facts.yml` as the fact source, then
 build an operation using the following abilities in order:
 
-| Step | Ability | Ability ID | Key Facts | Phase |
-|------|---------|------------|-----------|-------|
-| 1 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | - | Baseline |
-| 2 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=1`, `mode=DIRECT_OPERATE`, `type=LATCH_OFF` | 1 - Stop generator |
-| 3 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=DIRECT_OPERATE`, `type=LATCH_OFF` | 2 - Trip breaker |
-| 4 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=DIRECT_OPERATE`, `type=LATCH_ON` | Restore - Close breaker |
-| 5 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=1`, `mode=DIRECT_OPERATE`, `type=LATCH_ON` | Restore - Start generator |
-| 6 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=SELECT_BEFORE_OPERATE`, `type=LATCH_OFF` | 3 - SBO trip breaker |
-| 7 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | - | Confirm final state |
+| Step | Ability | Ability ID | Facts Used |
+|------|---------|------------|------------|
+| 1 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | baseline |
+| 2 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=1`, `mode=DIRECT_OPERATE`, `type=LATCH_OFF` (stop generator) |
+| 3 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=DIRECT_OPERATE`, `type=LATCH_OFF` (trip breaker) |
+| 4 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=DIRECT_OPERATE`, `type=LATCH_ON` (restore, close breaker) |
+| 5 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=1`, `mode=DIRECT_OPERATE`, `type=LATCH_ON` (restore, start generator) |
+| 6 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | `indices=0`, `mode=SELECT_BEFORE_OPERATE`, `type=LATCH_OFF` (SBO trip breaker) |
+| 7 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | confirm final state |
 
 ## Expected Observations
 
-- Phase 1 (Step 2): Generator disabled (T0831) - voltage collapses to ~0.05 kV, deficit rises to full load
-- Phase 2 (Step 3): Breaker opened (T0826) - voltage remains at ~0.05 kV, full blackout confirmed
-- Restore (Steps 4–5): Grid recovers to normal operating range
-- Phase 3 (Step 6): SELECT_BEFORE_OPERATE accepted without challenge (T0827) - second voltage collapse confirmed
-- Step 7: Final integrity poll shows disrupted state
-- All 5 DIRECT_OPERATE and 1 SELECT_BEFORE_OPERATE commands accepted without authentication
-
-![HMI during multi-phase grid disruption](../images/scenario-3-grid-disruption.png)
+- The generator stops and voltage collapses to about 0.05 kV as the deficit rises to full load.
+- The breaker opens and voltage stays at about 0.05 kV, a full blackout.
+- The restore commands bring the grid back to its normal operating range.
+- SELECT_BEFORE_OPERATE runs without challenge and voltage collapses a second time.
+- The final integrity poll shows the disrupted state.
+- The outstation accepts every operate command without authentication, over both DIRECT_OPERATE and SELECT_BEFORE_OPERATE.
 
 ## See Also
 
