@@ -7,5 +7,5 @@ black --check --exclude '/(\.venv|venv|\.ci_venv_.*)/' .
 echo "Running ruff..."
 ruff check --exclude .venv --exclude '.ci_venv_*' .
 echo "Running mypy..."
-mypy dnp3-sim
+mypy simulator
 echo "All checks passed."
