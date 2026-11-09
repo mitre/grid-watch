@@ -6,21 +6,18 @@ Covers:
 - Invalid config produces clear error messages
 """
 
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "dnp3-sim"))
-
-from config import (
+from simulator.config import (
     AnalogInputDef,
     BinaryInputDef,
     BinaryOutputDef,
     OutstationConfig,
     load_config,
 )
-from server import build_database
+from simulator.plc import build_database
 
 # --- Helpers ---
 

@@ -1,13 +1,6 @@
 """Tests for DNP3 link-layer framing (encode_frame / decode_frame / _frame_wire_size)."""
 
-import os
-import sys
-
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../dnp3-sim"))
-)
-
-from dnp3_frame import (
+from simulator.dnp3_frame import (
     MASTER_ADDR,
     OUTSTATION_ADDR,
     _BLOCK_SIZE,

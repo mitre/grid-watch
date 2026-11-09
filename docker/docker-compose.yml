@@ -34,7 +34,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     init: true
-    entrypoint: ["python", "dnp3-sim/hmi.py", "--web", "--host", "outstation", "--port", "20000", "--web-port", "8090"]
+    entrypoint: ["python", "-m", "simulator.hmi", "--web", "--host", "outstation", "--port", "20000", "--web-port", "8090"]
     networks:
       - ot-lab
     ports:
