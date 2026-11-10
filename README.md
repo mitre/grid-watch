@@ -105,6 +105,8 @@ docker compose -f docker/docker-compose.yml up --build
 * **Caldera UI**: http://localhost:8888 (login: `admin` / `admin`)
 * **DNP3 Outstation**: `localhost:20000`
 
+Caldera starts with the Grid Watch fact source and adversaries loaded.
+
 ### Packet Capture (Wireshark)
 
 An optional `capture` sidecar runs a full Wireshark desktop, accessible from a browser at
