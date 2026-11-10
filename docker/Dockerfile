@@ -7,9 +7,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source
-COPY dnp3-sim/ dnp3-sim/
+COPY simulator/ simulator/
 COPY config.yaml .
 
 EXPOSE 20000 8090
 
-ENTRYPOINT ["python", "dnp3-sim/server.py"]
+ENTRYPOINT ["python", "-m", "simulator.plc"]
