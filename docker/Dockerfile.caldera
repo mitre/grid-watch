@@ -11,68 +11,25 @@ RUN git clone --depth 1 --branch 5.3.0 --recurse-submodules --shallow-submodules
         https://github.com/apache/caldera.git && \
     git clone --depth 1 --recursive https://github.com/mitre/caldera-ot.git /tmp/caldera-ot
 
-# Copy OT plugin directories into Caldera's plugins folder, recording their
-# names so they can be enabled in default.yml later.
-RUN : > /opt/caldera/ot_plugins.txt && \
-    for plugin in /tmp/caldera-ot/*/; do \
+# Copy OT plugin directories into Caldera's plugins folder
+RUN for plugin in /tmp/caldera-ot/*/; do \
         name=$(basename "$plugin"); \
         if [ -d "$plugin" ] && [ "$name" != ".git" ]; then \
             cp -r "$plugin" /opt/caldera/plugins/"$name"; \
-            echo "$name" >> /opt/caldera/ot_plugins.txt; \
         fi; \
     done && \
     rm -rf /tmp/caldera-ot
 
 # Caldera loads every subdirectory of plugins/ at startup and exits(0) if any
-# lacks a hook.py (happens with uninitialised git submodules). Remove them,
-# then drop any that didn't survive from the OT plugin list below.
+# lacks a hook.py (happens with uninitialised git submodules). Remove them.
 RUN find /opt/caldera/plugins -mindepth 1 -maxdepth 1 -type d | while read d; do \
         [ -f "$d/hook.py" ] || rm -rf "$d"; \
-    done && \
-    while read -r name; do \
-        [ -d "/opt/caldera/plugins/$name" ] && echo "$name"; \
-    done < /opt/caldera/ot_plugins.txt > /tmp/ot_plugins.txt; \
-    mv /tmp/ot_plugins.txt /opt/caldera/ot_plugins.txt
+    done
 
 WORKDIR /opt/caldera
 
-# The iec61850 plugin's abilities reference precompiled payload binaries that
-# aren't checked into caldera-ot - they're distributed separately from
-# https://github.com/mitre/iec61850-payloads. Fetch the latest release
-# binaries into the plugin's payloads dir, per that repo's README.
-RUN if [ -d plugins/iec61850 ]; then \
-        mkdir -p plugins/iec61850/payloads && \
-        for f in iec61850_actions iec61850_actions.exe iec61850_actions_darwin; do \
-            curl -sfL -o plugins/iec61850/payloads/"$f" \
-                "https://github.com/mitre/iec61850-payloads/releases/latest/download/$f"; \
-        done && \
-        chmod +x plugins/iec61850/payloads/iec61850_actions \
-                 plugins/iec61850/payloads/iec61850_actions_darwin; \
-    fi
-
 # Build the magma Vue UI (required by rest_api.py to serve /assets)
 RUN cd plugins/magma && npm install --legacy-peer-deps && npm run build
-
-# app_svc.py builds the Jinja2 search path from plugin names only, omitting the
-# core templates/ dir where login.html lives. Patch it so all routes resolve.
-RUN python - <<'EOF'
-target = "templates.append('plugins/magma/dist')"
-path = 'app/service/app_svc.py'
-with open(path) as f:
-    src = f.read()
-if target not in src:
-    raise RuntimeError(f"Patch anchor not found in {path} — upstream may have changed")
-src = src.replace(
-    target,
-    target + "\n        templates.append('templates')"
-)
-with open(path, 'w') as f:
-    f.write(src)
-EOF
-
-# contact_tcp.py in Caldera 5.0.0 imports c_session from manx, which was removed
-# in later manx releases. Stub it out so the server starts without TCP agent support.
-RUN printf 'class Session:\n    pass\n' > /opt/caldera/plugins/manx/app/c_session.py
 
 # Install Caldera dependencies
 RUN pip install --no-cache-dir -r requirements.txt
@@ -83,31 +40,8 @@ RUN cd plugins/sandcat/gocat && \
       echo "sandcat build succeeded"; } || \
     echo "sandcat build skipped (non-fatal)"
 
-# Caldera only calls enable() on plugins listed in the config, and enable() is
-# what sets data_dir so plugin abilities load. Stock default.yml omits the OT
-# plugins entirely, so enable every OT plugin that was installed above.
-#
-# Also drop "atomic" and "training": this lab only needs the OT plugins, and
-# atomic's enable() falls back to a live "git clone" of redcanaryco/atomic-red-team
-# when its submodule data isn't present in the image, which can block server
-# startup for several minutes.
-RUN python - <<'EOF'
-import yaml
-with open('/opt/caldera/ot_plugins.txt') as f:
-    ot_plugins = [line.strip() for line in f if line.strip()]
-path = 'conf/default.yml'
-with open(path) as f:
-    config = yaml.safe_load(f)
-for name in ot_plugins:
-    if name not in config['plugins']:
-        config['plugins'].append(name)
-for name in ('atomic', 'training'):
-    if name in config['plugins']:
-        config['plugins'].remove(name)
-with open(path, 'w') as f:
-    yaml.safe_dump(config, f, default_flow_style=False)
-EOF
-RUN rm -f /opt/caldera/ot_plugins.txt
+COPY docker/caldera-setup.py /tmp/caldera-setup.py
+RUN python /tmp/caldera-setup.py dnp3
 
 # Ship this repo's DNP3 fact source and adversary profiles in the dnp3
 # plugin's data dir (see README "Caldera OT Integration" setup table), so
