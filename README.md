@@ -12,6 +12,9 @@ Yueming Guo, Lewen Lin, Myra Angelica Ortigosa, and Justin Smith
 
 In collaboration with Caldera for OT ([ot@mitre.org](mailto:ot@mitre.org)).
 
+Grid Watch is intended to grow open source collaboration in OT. We encourage forks and
+pull requests with improvements, new features, deployment notes, documentation, and tests.
+
 ![DNP3 Simulator Terminal Monitor](docs/images/terminal-monitor.png)
 
 ## Description
@@ -147,4 +150,4 @@ encoding directly.
 * [dnp3py](https://github.com/craigpnnl/dnp3py) - pure-Python DNP3 library used for the outstation and master implementations
 * [MITRE ATT&CK for ICS](https://attack.mitre.org/matrices/ics/) - threat model and tactic/technique taxonomy used in scenario design
 
-Approved for public release. Distribution unlimited PRS 26-1239.
+© 2026 The MITRE Corporation. Approved for Public Release; Distribution Unlimited. Case Number 26-1239.
