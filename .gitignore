@@ -27,5 +27,6 @@ caldera/
 tests/scenarios/*.json
 tests/scenarios/captures/
 
-# Wireshark sidecar output (docker/docker-compose.yml "capture" service)
-docker/captures/
+# Wireshark captures
+docker/captures/*
+!docker/captures/.gitkeep
