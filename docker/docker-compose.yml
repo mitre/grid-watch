@@ -43,6 +43,10 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.caldera
+    environment:
+      - SIM_HOST=outstation
+      - FACT_SOURCE=plugins/dnp3/data/sources/grid-watch-simulator-facts.yml
+      - FACT_TRAIT=dnp3.server.ip
     networks:
       - ot-lab
     ports:
