@@ -1,13 +1,13 @@
 #!/bin/bash
 # End-to-end smoke test for the Caldera OT + DNP3 outstation integration.
 #
-# Prerequisites: docker compose up --build  (all services running)
+# Prerequisites: docker compose -f docker/docker-compose.yml up --build -d
 #
 # This script:
 #   1. Waits for the outstation and Caldera to be healthy
 #   2. Waits for a Sandcat agent to check in
 #   3. Creates an adversary with a DNP3 Integrity Poll ability
-#   4. Runs an operation and waits for it to finish
+#   4. Runs an operation and checks the poll succeeded
 #   5. Reports pass/fail
 set -euo pipefail
 
@@ -55,6 +55,7 @@ for i in $(seq 1 40); do
     AGENT_COUNT=$(echo "${AGENTS}" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
     if [ "${AGENT_COUNT}" -gt 0 ]; then
         AGENT_PAW=$(echo "${AGENTS}" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['paw'])" 2>/dev/null)
+        if [ -z "${AGENT_PAW}" ]; then fail "Could not read the agent paw"; fi
         pass "Agent registered (paw=${AGENT_PAW})"
         break
     fi
@@ -70,7 +71,7 @@ import sys, json
 abilities = json.load(sys.stdin)
 for a in abilities:
     name = a.get('name', '').lower()
-    if 'dnp3' in name and 'integrity' in name:
+    if 'dnp3' in name and 'tcp' in name and 'integrity' in name:
         print(a['ability_id'])
         break
 else:
@@ -118,6 +119,7 @@ fi
 pass "Adversary profile ready (id=${ADVERSARY_ID})"
 
 # ── Step 6: Create and run an operation ─────────────────────────────
+SOURCE_ID="b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"
 info "Creating operation ..."
 OP_RESP=$(curl -sf -X POST -H "KEY:${API_KEY}" \
     -H "Content-Type: application/json" \
@@ -126,14 +128,7 @@ OP_RESP=$(curl -sf -X POST -H "KEY:${API_KEY}" \
         \"adversary\": {\"adversary_id\": \"${ADVERSARY_ID}\"},
         \"group\": \"red\",
         \"auto_close\": true,
-        \"source\": {
-            \"name\": \"DNP3 Smoke Test Source\",
-            \"facts\": [
-                {\"trait\": \"dnp3.server.ip\", \"value\": \"outstation\"},
-                {\"trait\": \"dnp3.local.link\", \"value\": \"3\"},
-                {\"trait\": \"dnp3.remote.link\", \"value\": \"1\"}
-            ]
-        }
+        \"source\": {\"id\": \"${SOURCE_ID}\"}
     }" \
     "${CALDERA_URL}/api/v2/operations" 2>/dev/null || echo "{}")
 
@@ -160,6 +155,21 @@ for i in $(seq 1 60); do
     fi
     sleep 5
 done
+
+# ── Step 8: Check the poll ran ──────────────────────────────────────
+RESULT=$(echo "${OP_STATUS}" | python3 -c "
+import sys, json
+chain = json.load(sys.stdin).get('chain', [])
+print(f\"{len(chain)} {chain[0]['status'] if chain else 'none'}\")
+" 2>/dev/null || echo "0 none")
+read -r LINKS LINK_STATUS <<< "${RESULT}"
+if [ "${LINKS}" -eq 0 ]; then
+    fail "Operation ran no abilities (check the fact source)"
+fi
+if [ "${LINK_STATUS}" != "0" ]; then
+    fail "Integrity poll exited with status ${LINK_STATUS}"
+fi
+pass "Integrity poll succeeded"
 
 # ── Summary ─────────────────────────────────────────────────────────
 echo ""
