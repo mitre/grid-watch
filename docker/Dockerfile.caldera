@@ -53,13 +53,9 @@ COPY docs/adversaries/dnp3-reconnaissance.yml \
      docs/adversaries/dnp3-grid-attack-and-verify.yml \
      plugins/dnp3/data/adversaries/
 
-# The fact source templates dnp3.server.ip for local use (127.0.0.1); point
-# it at the outstation service's DNS name on the ot-lab network instead.
-RUN sed -i 's/value: 127\.0\.0\.1/value: outstation/' \
-    plugins/dnp3/data/sources/grid-watch-simulator-facts.yml
+COPY docker/caldera-entrypoint.sh /caldera-entrypoint.sh
+RUN chmod +x /caldera-entrypoint.sh
 
 EXPOSE 8888 8443
 
-# Without -E the environment defaults to "local" and ensure_local_config()
-# generates conf/local.yml with random secrets on first boot.
-ENTRYPOINT ["python", "server.py", "-E", "default"]
+ENTRYPOINT ["/caldera-entrypoint.sh"]
