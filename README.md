@@ -165,8 +165,8 @@ pytest tests/ -v
 The dnp3py library currently lacks support for qualifier `0x17` (indexed-count format),
 which is the format this outstation uses for all object responses. This limitation was
 tracked in [craigpnnl/dnp3py issue #6](https://github.com/craigpnnl/dnp3py/issues/6).
-To work around it, `dnp3-sim/dnp3_frame.py` handles link-layer framing and a custom
-response parser was written in `dnp3-sim/dnp3_read.py` that handles the indexed-count
+To work around it, `simulator/dnp3_frame.py` handles link-layer framing and a custom
+response parser was written in `simulator/dnp3_read.py` that handles the indexed-count
 encoding directly.
 
 ## Acknowledgements

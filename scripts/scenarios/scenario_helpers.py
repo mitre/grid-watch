@@ -18,12 +18,17 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "dnp3-sim"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from dnp3.master import DefaultSOEHandler, Master
 from dnp3.transport_io.channel import TcpConfig
 from dnp3.transport_io.tcp_client import TcpClientChannel
-from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, decode_frame, encode_frame
+from simulator.dnp3_frame import (
+    MASTER_ADDR,
+    OUTSTATION_ADDR,
+    decode_frame,
+    encode_frame,
+)
 
 HOST = os.environ.get("OUTSTATION_HOST", "127.0.0.1")
 PORT = int(os.environ.get("OUTSTATION_PORT", "20000"))

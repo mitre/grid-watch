@@ -6,7 +6,7 @@
 #   OUTSTATION_HOST=outstation bash scripts/run-scenarios.sh  # docker-compose
 #
 # Prerequisites:
-#   - The DNP3 outstation (dnp3-sim/server.py) must be running
+#   - The DNP3 outstation (simulator/plc.py) must be running
 #   - Python virtual environment with dnp3py installed
 #
 # Optional: If tcpdump is available and run with sufficient privileges,
@@ -39,7 +39,7 @@ s = socket.create_connection(('${OUTSTATION_HOST}', ${OUTSTATION_PORT}), 3)
 s.close()
 " 2>/dev/null; then
     echo -e "${RED}ERROR: Cannot connect to outstation at ${OUTSTATION_HOST}:${OUTSTATION_PORT}${NC}"
-    echo "Make sure the server is running: python dnp3-sim/server.py"
+    echo "Make sure the server is running: python -m simulator.plc"
     exit 1
 fi
 echo -e "${GREEN}Outstation is reachable.${NC}"

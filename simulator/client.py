@@ -1,17 +1,17 @@
 import asyncio
 import logging
-import os
-import sys
-
-if __name__ == "__main__" and __package__ is None:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from dnp3.master import Master
 from dnp3.transport_io.channel import TcpConfig
 from dnp3.transport_io.tcp_client import TcpClientChannel
 
-from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, decode_frame, encode_frame
-from dnp3_read import parse_dnp3_response
+from simulator.dnp3_frame import (
+    MASTER_ADDR,
+    OUTSTATION_ADDR,
+    decode_frame,
+    encode_frame,
+)
+from simulator.dnp3_read import parse_dnp3_response
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"

@@ -1,13 +1,9 @@
 import asyncio
-import os
 import struct
-import sys
 
 import pytest
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../dnp3-sim")))
-
-from dnp3_read import DNP3Points, parse_dnp3_response
+from simulator.dnp3_read import DNP3Points, parse_dnp3_response
 
 # ---------------------------------------------------------------------------
 # Helpers — build synthetic DNP3 application-layer response bytes
@@ -397,12 +393,13 @@ async def test_live_integrity_poll_returns_sensible_values():
     from dnp3.transport_io.tcp_client import TcpClientChannel
 
     import os
-    import sys
 
-    sys.path.insert(
-        0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../dnp3-sim"))
+    from simulator.dnp3_frame import (
+        MASTER_ADDR,
+        OUTSTATION_ADDR,
+        decode_frame,
+        encode_frame,
     )
-    from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, decode_frame, encode_frame
 
     if os.environ.get("RUN_LIVE_DNP3_TESTS") != "1":
         pytest.skip("set RUN_LIVE_DNP3_TESTS=1 to run live outstation tests")

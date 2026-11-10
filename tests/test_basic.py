@@ -1,10 +1,5 @@
 import asyncio
-import sys
-import os
 import time
-from pathlib import Path
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../dnp3-sim")))
 
 import pytest
 import pytest_asyncio
@@ -17,13 +12,16 @@ from dnp3.outstation.config import OutstationConfig
 from dnp3.transport_io import TcpServer
 from dnp3.transport_io.channel import TcpConfig, TcpServerConfig
 from dnp3.transport_io.tcp_client import TcpClientChannel
-from config import load_config
+from simulator.config import load_config
 from dnp3.core.enums import FunctionCode
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "dnp3-sim"))
-
-from server import DatabaseCommandHandler, build_database, handle_connection
-from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, encode_frame, decode_frame
+from simulator.plc import DatabaseCommandHandler, build_database, handle_connection
+from simulator.dnp3_frame import (
+    MASTER_ADDR,
+    OUTSTATION_ADDR,
+    encode_frame,
+    decode_frame,
+)
 
 
 def write_temp_yaml(tmp_path, content):
