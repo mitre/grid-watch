@@ -84,7 +84,7 @@ services:
   # from agent and connections from host-side DNP3 clients via the
   # published 20000 port. Opt in with --profile capture.
   capture:
-    image: lscr.io/linuxserver/wireshark:latest
+    image: lscr.io/linuxserver/wireshark:4.6.6-r0-ls328
     profiles:
       - capture
     network_mode: "service:outstation"
@@ -95,8 +95,8 @@ services:
       - NET_RAW
     shm_size: "1gb"
     environment:
-      - PUID=1000
-      - PGID=1000
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
       - TZ=Etc/UTC
     volumes:
       # This image's desktop session is a nested Wayland setup: the Python
