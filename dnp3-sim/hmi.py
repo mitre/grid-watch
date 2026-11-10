@@ -120,7 +120,7 @@ async def dnp3_poller(
 
         except asyncio.TimeoutError:
             logger.warning("DNP3 poll timed out — reconnecting in 2s")
-        except (ConnectionError, OSError) as e:
+        except Exception as e:
             logger.warning("DNP3 poll error: %s — reconnecting in 2s", e)
         finally:
             await channel.close()
