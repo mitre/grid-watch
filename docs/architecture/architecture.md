@@ -5,10 +5,10 @@ The simulator runs as a single Python process with four cooperating components:
 ```mermaid
 flowchart TD
     A["DNP3 Client\n(Caldera / Tooling)"]
-    B["DNP3 Outstation\n(server.py)"]
+    B["DNP3 Outstation\n(plc.py)"]
     C["DatabaseCommandHandler\n(processes control commands)"]
     D["Database - Binary Outputs\n(breaker, generator controls)"]
-    E["GridProcessSim\n(process_sim.py)"]
+    E["GridProcessSim\n(sim.py)"]
     F["Database - Analog Inputs\n(bus voltage, power deficit)"]
     G["HMI\n(hmi.py)"]
 

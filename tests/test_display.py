@@ -1,27 +1,25 @@
 import asyncio
-import sys
-from pathlib import Path
 
 import pytest
 
 from dnp3.core.enums import ControlCode
 from dnp3.core.flags import AnalogQuality, BinaryQuality
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "dnp3-sim"))
-
-from server import (
+from simulator.plc import (
     DatabaseCommandHandler,
+    build_database,
+    command_listener,
+    handle_connection,
+)
+from simulator.ui.terminal import (
     _fmt_row,
     _quality_str,
     _render_display,
-    build_database,
-    command_listener,
     display_loop,
-    handle_connection,
 )
 from dnp3.outstation import Outstation
-from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, encode_frame
-from process_sim import GridProcessSim
+from simulator.dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, encode_frame
+from simulator.sim import GridProcessSim
 
 # --- _quality_str ---
 
@@ -309,38 +307,38 @@ async def test_handle_connection_partial_then_eof_continues():
 @pytest.mark.asyncio
 async def test_handle_connection_discards_oversized_junk_buffer(monkeypatch):
     """Junk that never decodes must not accumulate without bound."""
-    import server
+    from simulator import plc
 
     db = build_database()
     outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
 
     seen: list[int] = []
-    real_decode = server.decode_frame
+    real_decode = plc.decode_frame
 
     def _spy(buf: bytes) -> bytes:
         seen.append(len(buf))
         return real_decode(buf)
 
-    monkeypatch.setattr(server, "decode_frame", _spy)
+    monkeypatch.setattr(plc, "decode_frame", _spy)
 
     chunk = b"\x05" * 4096
-    chunks = [chunk] * (server.MAX_BUFFER_BYTES // len(chunk) + 4)
+    chunks = [chunk] * (plc.MAX_BUFFER_BYTES // len(chunk) + 4)
     channel = _MockChannel(chunks + [b""])
 
     await handle_connection(channel, outstation)
 
     assert seen, "decode_frame should have been called"
-    assert max(seen) <= server.MAX_BUFFER_BYTES + len(chunk), (
+    assert max(seen) <= plc.MAX_BUFFER_BYTES + len(chunk), (
         f"buffer grew to {max(seen)} bytes, expected it to be discarded near "
-        f"{server.MAX_BUFFER_BYTES}"
+        f"{plc.MAX_BUFFER_BYTES}"
     )
 
 
 @pytest.mark.asyncio
 async def test_handle_connection_valid_frame_after_junk_still_responds():
     """Clearing the junk buffer must not break a following valid frame."""
-    from dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, encode_frame
-    from server import MAX_BUFFER_BYTES
+    from simulator.dnp3_frame import MASTER_ADDR, OUTSTATION_ADDR, encode_frame
+    from simulator.plc import MAX_BUFFER_BYTES
 
     db = build_database()
     outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))

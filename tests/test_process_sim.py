@@ -1,8 +1,4 @@
 import asyncio
-import os
-import sys
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../dnp3-sim")))
 
 import pytest
 
@@ -13,7 +9,7 @@ from dnp3.database import (
     Database,
 )
 
-from process_sim import GridProcessSim, GridSimConfig
+from simulator.sim import GridProcessSim, GridSimConfig
 
 
 def _make_db(*, breaker: bool = True, generator: bool = False) -> Database:

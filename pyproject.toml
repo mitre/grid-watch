@@ -9,10 +9,11 @@ exclude = [".venv", ".ci_venv_*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
+pythonpath = ["."]
 
 [tool.coverage.run]
-source = ["dnp3-sim"]
-omit = ["dnp3-sim/client.py", "dnp3-sim/hmi.py"]
+source = ["simulator"]
+omit = ["simulator/client.py", "simulator/hmi.py", "simulator/ui/desktop_ui.py"]
 
 [tool.coverage.report]
 fail_under = 100
