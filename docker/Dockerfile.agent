@@ -1,6 +1,12 @@
-FROM alpine:3.19
+# DNP3 plugin's action payload is a glibc-linked amd64 binary (no musl/arm64
+# build wired into its abilities), so this needs a real glibc runtime rather
+# than Alpine's musl - paired with the amd64 platform pin in docker-compose.yml.
+# Needs GLIBC_2.38+ (debian:bookworm-slim's 2.36 is too old); noble ships 2.39.
+FROM ubuntu:24.04
 
-RUN apk add --no-cache curl bash
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl bash && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY docker/agent-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
