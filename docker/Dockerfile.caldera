@@ -112,7 +112,7 @@ RUN rm -f /opt/caldera/ot_plugins.txt
 # Ship this repo's DNP3 fact source and adversary profiles in the dnp3
 # plugin's data dir (see README "Caldera OT Integration" setup table), so
 # the scenarios are available without a manual copy step.
-COPY docs/sources/grid-simulator-facts.yml plugins/dnp3/data/sources/
+COPY docs/sources/grid-watch-simulator-facts.yml plugins/dnp3/data/sources/
 COPY docs/adversaries/dnp3-reconnaissance.yml \
      docs/adversaries/dnp3-unauthorized-control.yml \
      docs/adversaries/dnp3-grid-disruption.yml \
@@ -122,7 +122,7 @@ COPY docs/adversaries/dnp3-reconnaissance.yml \
 # The fact source templates dnp3.server.ip for local use (127.0.0.1); point
 # it at the outstation service's DNS name on the ot-lab network instead.
 RUN sed -i 's/value: 127\.0\.0\.1/value: outstation/' \
-    plugins/dnp3/data/sources/grid-simulator-facts.yml
+    plugins/dnp3/data/sources/grid-watch-simulator-facts.yml
 
 EXPOSE 8888 8443
 
