@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Entry point for the Caldera OT DNP3 Simulator."""
 
+import os
 import subprocess
 import sys
 from pathlib import Path
 
-SIM = Path(__file__).parent / "dnp3-sim"
+ROOT = Path(__file__).parent
 
 
-def run(script: str, extra_args: list[str] | None = None) -> None:
-    cmd = [sys.executable, str(SIM / script)] + (extra_args or [])
-    result = subprocess.run(cmd)
+def run(module: str, extra_args: list[str] | None = None) -> None:
+    cmd = [sys.executable, "-m", module] + (extra_args or [])
+    env = dict(os.environ)
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = f"{ROOT}{os.pathsep}{existing}" if existing else str(ROOT)
+    result = subprocess.run(cmd, env=env)
     sys.exit(result.returncode)
 
 
@@ -33,7 +37,7 @@ def main() -> None:
         print()
         config = input("Config file path [default: config.yaml]: ").strip()
         extra = ["--config", config] if config else []
-        run("server.py", extra)
+        run("simulator.plc", extra)
     elif choice == "2":
         print()
         host = input("Outstation host [default: 127.0.0.1]: ").strip()
@@ -43,9 +47,9 @@ def main() -> None:
             extra += ["--host", host]
         if port:
             extra += ["--port", port]
-        run("hmi.py", extra)
+        run("simulator.hmi", extra)
     elif choice == "3":
-        run("client.py")
+        run("simulator.client")
     else:
         print("Invalid choice.")
         sys.exit(1)
