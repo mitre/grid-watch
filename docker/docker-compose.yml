@@ -1,8 +1,11 @@
+name: grid-watch
+
 services:
   outstation:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    init: true
     networks:
       - ot-lab
     ports:
@@ -30,6 +33,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    init: true
     entrypoint: ["python", "dnp3-sim/hmi.py", "--web", "--host", "outstation", "--port", "20000", "--web-port", "8090"]
     networks:
       - ot-lab
@@ -43,10 +47,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.caldera
+    init: true
     environment:
       - SIM_HOST=outstation
       - FACT_SOURCE=plugins/dnp3/data/sources/grid-watch-simulator-facts.yml
       - FACT_TRAIT=dnp3.server.ip
+    depends_on:
+      outstation:
+        condition: service_healthy
     networks:
       - ot-lab
     ports:
@@ -63,6 +71,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.agent
+    init: true
     # The DNP3 plugin's Linux action payload is a dynamically-linked amd64
     # glibc binary with no arm64 build wired into its ability definitions.
     # Pin the whole container to amd64 so Docker Desktop's Rosetta/QEMU
