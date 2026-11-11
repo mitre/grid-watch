@@ -10,7 +10,7 @@ WORKDIR /opt
 RUN git clone --depth 1 --branch 5.3.0 --recurse-submodules --shallow-submodules \
         https://github.com/apache/caldera.git && \
     git clone --recursive https://github.com/mitre/caldera-ot.git /tmp/caldera-ot && \
-    git -C /tmp/caldera-ot checkout -q 39797af1562a0c0f2eb8e10fe5fee8a6e36a5cf4 && \
+    git -C /tmp/caldera-ot checkout -q e0e2715d199f83e109fb38ea01a57e1c9db752ef && \
     git -C /tmp/caldera-ot submodule update --init --recursive
 
 # Copy OT plugin directories into Caldera's plugins folder
