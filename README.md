@@ -169,6 +169,23 @@ To work around it, `simulator/dnp3_frame.py` handles link-layer framing and a cu
 response parser was written in `simulator/dnp3_read.py` that handles the indexed-count
 encoding directly.
 
+## Other Simulators
+
+MITRE provides other open-source simulators for testing the Caldera for OT plugins
+without physical hardware.
+
+### [Aloha Water Treatment](https://github.com/mitre/aloha-water-treatment)
+
+Aloha Water Treatment is a simulated water treatment plant with Modbus and BACnet process control.
+
+### [HVACSim](https://github.com/mitre/hvac-sim)
+
+HVACSim is a simulated HVAC control system that mimics the behavior of a real-world BACnet device.
+
+### [Wildcat Dam](https://github.com/mitre/wildcatdam)
+
+Wildcat Dam is a simulated dam controller that mimics the behavior of a real-world Modbus device.
+
 ## Acknowledgements
 
 * [Caldera](https://github.com/apache/caldera) - Automated Adversary Emulation Platform
