@@ -7,7 +7,7 @@
 | **Tactic** | Collection |
 | **Techniques** | [T0802 - Automated Collection](https://attack.mitre.org/techniques/T0802/), [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/) |
 | **Adversary** | Grid Watch DNP3 Reconnaissance (`docs/adversaries/dnp3-reconnaissance.yml`) |
-| **Fact source** | Grid Watch Facts (`docs/sources/grid-watch-simulator-facts.yml`) |
+| **Fact source** | Grid Watch Reconnaissance (`docs/sources/grid-watch-reconnaissance.yml`) |
 
 ## Description
 
@@ -28,7 +28,7 @@ The adversary reads every point on the outstation without sending a command: an 
 
 ## Steps
 
-Run the adversary with the fact source above, or add these abilities to an operation in this order:
+Run the adversary with the fact source above. Each trait has a single value, so each ability runs once and the operation is three links in this order:
 
 | # | Ability | ID | Facts |
 |---|---|---|---|
@@ -44,5 +44,5 @@ Run the adversary with the fact source above, or add these abilities to an opera
 - The integrity poll returns 2 binary inputs (`Group1Var2`), 2 binary outputs (`Group10Var2`) and 2 analog inputs (`Group30Var1`), plus any events since the last poll.
 - `AI[0]` is the bus voltage in whole kV: 10 to 12 with the breaker closed and the generator on, otherwise 0 once it settles (about 10 seconds).
 - `AI[1]` is the power deficit in kW: the load minus 600 (at least 0) with the breaker closed and the generator on, and the whole load (100 to 1500) otherwise.
-- `BO[0]` and `BI[0]` are the breaker (1 = closed); `BO[1]` and `BI[1]` are the generator (1 = on). They start at 0.
-- Read All and Read of group 1 return binary inputs 0 and 1 with the same values as the poll.
+- `BO[0]` and `BI[0]` are the breaker (1 = closed); `BO[1]` and `BI[1]` are the generator (1 = on). On a fresh start both are 0.
+- Read All and Read of group 1 return binary inputs 0 and 1 with the same values as the poll. The outstation reads all of group 1 for both, since the targeted read starts at index 0.

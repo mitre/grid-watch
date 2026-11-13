@@ -94,7 +94,7 @@ HMI (`simulator.hmi`):
 
 The test client, `python -m simulator.client`, takes `--host`, `--port` and `--debug` with the same defaults as the HMI.
 
-`config.yaml` sets the bind address and port and the initial point values. The outstation uses DNP3 link address 1 and the master uses 3, matching `dnp3.remote.link` and `dnp3.local.link` in the fact source.
+`config.yaml` sets the bind address and port and the initial point values. The outstation uses DNP3 link address 1 and the master uses 3, matching `dnp3.remote.link` and `dnp3.local.link` in the fact sources.
 
 ### Docker
 
@@ -110,7 +110,7 @@ docker compose -f docker/docker-compose.yml up --build -d
 | Web HMI | http://localhost:8090 |
 | DNP3 PLC | `localhost:20000` |
 
-All ports are published on `127.0.0.1` only. Caldera starts with the Grid Watch fact source and adversary profiles loaded.
+All ports are published on `127.0.0.1` only. Caldera starts with the Grid Watch fact sources and adversary profiles loaded.
 
 An optional Wireshark container shares the PLC's network, so it sees the HMI polling and the DNP3 traffic from the Caldera agent:
 
@@ -118,7 +118,7 @@ An optional Wireshark container shares the PLC's network, so it sees the HMI pol
 docker compose -f docker/docker-compose.yml --profile capture up -d capture
 ```
 
-Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`.
+Open https://127.0.0.1:3001 and start a capture on `eth0`. Saved captures land in `docker/captures/`. If 3001 is taken, set `WIRESHARK_PORT` to another port.
 
 ## DNP3 Map
 
@@ -167,11 +167,11 @@ The master-side parser in dnp3py 0.3.0 (`Master.process_response`) does not deco
 
 ## Caldera OT Integration
 
-This repo ships a fact source and adversary profiles for [MITRE Caldera™ for OT](https://github.com/mitre/caldera-ot) and its [DNP3 plugin](https://github.com/mitre/dnp3). The Docker lab loads them for you. To use them with your own Caldera server, copy them into the plugin directories below, adjust the values for your network, and restart Caldera:
+This repo ships adversary profiles for [MITRE Caldera™ for OT](https://github.com/mitre/caldera-ot) and its [DNP3 plugin](https://github.com/mitre/dnp3), each paired with its own fact source. Every profile runs deterministically: each ability appears once, and the paired source gives every trait one value, so each step is one link. The Docker lab loads them for you. To use them with your own Caldera server, copy them into the plugin directories below, adjust the values for your network, and restart Caldera:
 
 | File | Destination |
 |---|---|
-| `docs/sources/grid-watch-simulator-facts.yml` | `plugins/dnp3/data/sources/` |
+| `docs/sources/grid-watch-*.yml` | `plugins/dnp3/data/sources/` |
 | `docs/adversaries/dnp3-*.yml` | `plugins/dnp3/data/adversaries/` |
 
 ### Scenarios
@@ -180,7 +180,7 @@ This repo ships a fact source and adversary profiles for [MITRE Caldera™ for O
 |---|---|---|
 | Grid Watch DNP3 Reconnaissance | [Scenario 1](docs/scenarios/scenario_1_reconnaissance.md) | Read every point without sending a command |
 | Grid Watch DNP3 Unauthorized Control | [Scenario 2](docs/scenarios/scenario_2_unauthorized_control.md) | Trip the breaker and stop the generator over DIRECT_OPERATE |
-| Grid Watch DNP3 Grid Disruption | [Scenario 3](docs/scenarios/scenario_3_grid_disruption.md) | Black out the grid, restore it, then trip it again over SELECT_BEFORE_OPERATE |
+| Grid Watch DNP3 Grid Disruption | [Scenario 3](docs/scenarios/scenario_3_grid_disruption.md) | Black out the grid over SELECT_BEFORE_OPERATE (restore by hand) |
 | Grid Watch DNP3 Grid Attack and Verify | [Scenario 4](docs/scenarios/scenario_4_grid_attack_and_verify.md) | Trip the breaker, read the result back, then try a warm restart |
 
 ## Running Tests

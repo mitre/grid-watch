@@ -1,0 +1,30 @@
+---
+
+id: 3f8b2d14-6e95-4a7c-b2e0-9d1c4a6f5b83
+name: Grid Watch Unauthorized Control
+facts:
+
+# DNP3 CONNECTION FACTS
+
+- trait: dnp3.server.ip  # IP address of the outstation
+  value: 127.0.0.1
+- trait: dnp3.local.link  # Link address of the master
+  value: 3
+- trait: dnp3.remote.link  # Link address of the outstation
+  value: 1
+
+# DNP3 READ FACTS
+
+- trait: dnp3.data.group  # Object group to read (1 = binary inputs)
+  value: 1
+
+# DNP3 WRITE FACTS
+
+- trait: dnp3.operate.indices  # Breaker (0) and generator (1) in one command
+  value: 0,1
+- trait: dnp3.operate.mode  # Direct operate
+  value: DIRECT_OPERATE
+- trait: dnp3.operate.type  # Latch off (open breaker, stop generator)
+  value: LATCH_OFF
+- trait: dnp3.operate.tcc  # Trip-close code (unused by the outstation)
+  value: NUL

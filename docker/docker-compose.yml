@@ -12,7 +12,7 @@ services:
     # network namespace, so its port is published here.
     ports:
       - "127.0.0.1:20000:20000"
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:${WIRESHARK_PORT:-3001}:3001"
     healthcheck:
       test:
         [
@@ -46,7 +46,7 @@ services:
     init: true
     environment:
       - SIM_HOST=plc
-      - FACT_SOURCE=plugins/dnp3/data/sources/grid-watch-simulator-facts.yml
+      - FACT_SOURCE=plugins/dnp3/data/sources/grid-watch-*.yml
       - FACT_TRAIT=dnp3.server.ip
     depends_on:
       plc:
