@@ -5,9 +5,9 @@
 | Field | Value |
 |---|---|
 | **Tactic** | Impair Process Control, Impact, Collection, Inhibit Response Function |
-| **Techniques** | [T0855 - Unauthorized Command Message](https://attack.mitre.org/techniques/T0855/), [T0831 - Manipulation of Control](https://attack.mitre.org/techniques/T0831/), [T0826 - Loss of Availability](https://attack.mitre.org/techniques/T0826/), [T0802 - Automated Collection](https://attack.mitre.org/techniques/T0802/), [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/), [T0816 - Device Restart/Shutdown](https://attack.mitre.org/techniques/T0816/) |
+| **Techniques** | [T1692.001 - Unauthorized Message: Command Message](https://attack.mitre.org/techniques/T1692/001/), [T0831 - Manipulation of Control](https://attack.mitre.org/techniques/T0831/), [T0826 - Loss of Availability](https://attack.mitre.org/techniques/T0826/), [T0802 - Automated Collection](https://attack.mitre.org/techniques/T0802/), [T0861 - Point & Tag Identification](https://attack.mitre.org/techniques/T0861/), [T0816 - Device Restart/Shutdown](https://attack.mitre.org/techniques/T0816/) |
 | **Adversary** | Grid Watch DNP3 Grid Attack and Verify (`docs/adversaries/dnp3-grid-attack-and-verify.yml`) |
-| **Fact source** | Grid Watch Facts (`docs/sources/grid-watch-simulator-facts.yml`) |
+| **Fact source** | Grid Watch Grid Attack and Verify (`docs/sources/grid-watch-grid-attack-and-verify.yml`) |
 
 ## Description
 
@@ -38,11 +38,11 @@ The adversary trips the breaker, reads the outstation back to confirm the change
 
 ## Steps
 
-Add these abilities to an operation in this order and choose the facts shown for each step. If you run the adversary instead, Caldera runs the Operate step once for every combination of `dnp3.operate.indices`, `dnp3.operate.mode` and `dnp3.operate.type` in the fact source, which ends with the breaker and the generator latched on.
+Run the adversary with the fact source above. Each trait has a single value, so each ability runs once and the operation is five links in this order:
 
 | # | Ability | ID | Facts |
 |---|---|---|---|
-| 1 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | trip breaker: `dnp3.operate.indices=0`, `dnp3.operate.mode=DIRECT_OPERATE`, `dnp3.operate.type=LATCH_OFF` |
+| 1 | DNP3 (TCP) - Operate | `5a073c32-e022-3724-85ad-7192464287b8` | trip breaker: `dnp3.operate.indices=0`, `dnp3.operate.mode=DIRECT_OPERATE`, `dnp3.operate.type=LATCH_OFF`, `dnp3.operate.tcc=NUL` |
 | 2 | DNP3 (TCP) - Read | `689ee6dd-9f24-352f-90da-8d06fae7d19c` | verify: `dnp3.data.group=1`, `dnp3.data.start=0`, `dnp3.data.end=1` |
 | 3 | DNP3 (TCP) - Read All | `8d0889f8-6801-4986-baaf-83622bf08ced` | verify: `dnp3.data.group=1` |
 | 4 | DNP3 (TCP) - Integrity Poll | `1d412b2f-f4ae-3ed2-822e-55a4490a7d1a` | verify |
