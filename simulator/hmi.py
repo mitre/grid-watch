@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import logging
 import queue
+import signal
 import sys
 import threading
 import time
@@ -177,6 +178,10 @@ async def run_io(
     )
 
 
+def _interrupt(signum: int, frame: object) -> None:
+    raise KeyboardInterrupt
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Live HMI for DNP3 grid simulator")
     parser.add_argument("--host", default="127.0.0.1", help="Outstation host")
@@ -265,7 +270,12 @@ def main() -> None:
         return []
 
     _anim = FuncAnimation(fig, update, interval=500, cache_frame_data=False)
-    plt.show()
+    signal.signal(signal.SIGTERM, _interrupt)
+    try:
+        plt.show()
+    except KeyboardInterrupt:
+        pass
+    logger.info("Stopped")
 
 
 if __name__ == "__main__":

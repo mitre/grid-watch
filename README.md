@@ -162,12 +162,12 @@ pytest tests/ -v
 
 ## Custom DNP3 Read
 
-The dnp3py library currently lacks support for qualifier `0x17` (indexed-count format),
-which is the format this outstation uses for all object responses. This limitation was
-tracked in [craigpnnl/dnp3py issue #6](https://github.com/craigpnnl/dnp3py/issues/6).
-To work around it, `simulator/dnp3_frame.py` handles link-layer framing and a custom
-response parser was written in `simulator/dnp3_read.py` that handles the indexed-count
-encoding directly.
+The master-side parser in dnp3py 0.3.0 (`Master.process_response`) does not decode this
+outstation's responses correctly, so the HMI and the test client parse them with
+`simulator/dnp3_read.py`. It handles the start/stop range format (qualifiers `0x00` and
+`0x01`) used for static points and the indexed-count format (`0x17` and `0x28`) used for
+events. `simulator/dnp3_frame.py` adds the link-layer framing so Wireshark can decode the
+traffic.
 
 ## Other Simulators
 

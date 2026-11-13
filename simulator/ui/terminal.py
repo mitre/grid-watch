@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import logging
+from collections import deque
+from collections.abc import Iterable
 from enum import IntFlag
 
 from dnp3.database import Database
@@ -8,6 +10,15 @@ from dnp3.database import Database
 from simulator.sim import GridProcessSim
 
 logger = logging.getLogger(__name__)
+
+
+class EventLog(logging.Handler):
+    def __init__(self, size: int = 8) -> None:
+        super().__init__()
+        self.lines: deque[str] = deque(maxlen=size)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(self.format(record))
 
 
 _CHANGED = "\033[1;33m"
@@ -28,7 +39,9 @@ def _fmt_row(changed: bool, idx: int, value_str: str, quality_str: str) -> str:
 _Snapshot = dict[tuple[str, int], tuple[bool | float, int]]
 
 
-def _render_display(db: Database, prev: _Snapshot, sim_status: str = "") -> _Snapshot:
+def _render_display(
+    db: Database, prev: _Snapshot, sim_status: str = "", events: Iterable[str] = ()
+) -> _Snapshot:
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     cur: _Snapshot = {}
 
@@ -94,13 +107,19 @@ def _render_display(db: Database, prev: _Snapshot, sim_status: str = "") -> _Sna
         "",
         "Commands: pause | resume | reset | g | b",
     ]
+    events = list(events)
+    if events:
+        lines += ["", "Events", *events]
 
     print("\033[2J\033[H" + "\n".join(lines), flush=True)
     return cur
 
 
 async def display_loop(
-    db: Database, interval: float = 1.0, sim: GridProcessSim | None = None
+    db: Database,
+    interval: float = 1.0,
+    sim: GridProcessSim | None = None,
+    events: EventLog | None = None,
 ) -> None:
     prev: _Snapshot = {}
     try:
@@ -108,7 +127,8 @@ async def display_loop(
             status = ""
             if sim is not None:
                 status = "PAUSED" if sim.paused else "RUNNING"
-            prev = _render_display(db, prev, sim_status=status)
+            lines = events.lines if events is not None else ()
+            prev = _render_display(db, prev, sim_status=status, events=lines)
             await asyncio.sleep(interval)
     except asyncio.CancelledError:
         raise

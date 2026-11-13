@@ -44,13 +44,12 @@ build an operation using the following abilities in order:
 
 ## Expected Observations
 
-- The outstation accepts a TCP connection without authentication.
-- The integrity poll returns all static data: 2 binary inputs, 2 analog inputs, and 2 binary outputs.
-- `AI[0]` reads bus voltage, roughly 10 to 12 kV with the breaker closed and the generator on.
-- `AI[1]` reads power deficit, roughly 200 to 800 kW depending on generator state.
-- `BO[0]` is the breaker control and `BO[1]` is the generator control, both readable without access control.
-- The targeted read of group 1, indices 0 and 1, enumerates specific binary input points.
-- Read-only operations trigger no alarms.
+- The outstation accepts every request without authentication, and the reads do not change the grid.
+- The integrity poll returns 2 binary inputs (`Group1Var2`), 2 binary outputs (`Group10Var2`) and 2 analog inputs (`Group30Var1`), plus any events since the last poll.
+- `AI[0]` is the bus voltage in whole kV: 10 to 12 with the breaker closed and the generator on, otherwise 0 once it settles (about 10 seconds).
+- `AI[1]` is the power deficit in kW: the load minus 600 (at least 0) with the breaker closed and the generator on, and the whole load (100 to 1500) otherwise.
+- `BO[0]` and `BI[0]` are the breaker (1 = closed); `BO[1]` and `BI[1]` are the generator (1 = on). They start at 0.
+- Read All and Read of group 1 return binary inputs 0 and 1 with the same values as the poll.
 
 ## See Also
 
