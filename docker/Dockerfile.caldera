@@ -10,7 +10,7 @@ WORKDIR /opt
 RUN git clone --depth 1 --branch 5.3.0 --recurse-submodules --shallow-submodules \
         https://github.com/apache/caldera.git && \
     git clone --recursive https://github.com/mitre/caldera-ot.git /tmp/caldera-ot && \
-    git -C /tmp/caldera-ot checkout -q 39797af1562a0c0f2eb8e10fe5fee8a6e36a5cf4 && \
+    git -C /tmp/caldera-ot checkout -q b45a8b1b1218a112cc822f460e8fa3f6e8027811 && \
     git -C /tmp/caldera-ot submodule update --init --recursive
 
 # Copy OT plugin directories into Caldera's plugins folder
@@ -39,19 +39,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY docker/caldera-setup.py /tmp/caldera-setup.py
 RUN python /tmp/caldera-setup.py dnp3
 
-# Ship this repo's DNP3 fact source and adversary profiles in the dnp3
-# plugin's data dir (see README "Caldera OT Integration" setup table), so
-# the scenarios are available without a manual copy step.
-COPY docs/sources/grid-watch-simulator-facts.yml plugins/dnp3/data/sources/
-COPY docs/adversaries/dnp3-reconnaissance.yml \
-     docs/adversaries/dnp3-unauthorized-control.yml \
-     docs/adversaries/dnp3-grid-disruption.yml \
-     docs/adversaries/dnp3-grid-attack-and-verify.yml \
-     plugins/dnp3/data/adversaries/
+COPY docs/sources/*.yml plugins/dnp3/data/sources/
+COPY docs/adversaries/*.yml plugins/dnp3/data/adversaries/
 
 COPY docker/caldera-entrypoint.sh /caldera-entrypoint.sh
 RUN chmod +x /caldera-entrypoint.sh
 
-EXPOSE 8888 8443
+EXPOSE 8888
 
 ENTRYPOINT ["/caldera-entrypoint.sh"]

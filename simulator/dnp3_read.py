@@ -9,6 +9,7 @@ Supported group/variations:
 
   g1v2  — Binary Input with flags      (1 byte per object)
   g10v2 — Binary Output with flags     (1 byte per object)
+  g12v1 — Control Relay Output Block   (11 bytes, status in the last byte)
   g30v1 — Analog Input 32-bit w/flag   (5 bytes: 1 quality + 4 int32 LE)
   g32v1 — Analog Input Event 32-bit    (5 bytes, skipped)
   g2v1  — Binary Input Event           (1 byte,  skipped)
@@ -23,7 +24,8 @@ Supported qualifiers:
 Analog values are truncated to int32 by the outstation's g30v1 encoding,
 so voltage reads as a whole-number kV (e.g. 12 instead of 12.47).
 
-This module replaces the broken qualifier parsing in the dnp3py library.
+dnp3py's Master does not decode these responses correctly, so the HMI and
+the test client use this parser instead.
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ _OBJ_SIZE: dict[tuple[int, int], int] = {
     (2, 1): 1,  # g2v1:  binary input event
     (10, 2): 1,  # g10v2: binary output with flags
     (11, 1): 1,  # g11v1: binary output event
+    (12, 1): 11,  # g12v1: control relay output block
     (20, 1): 5,  # g20v1: counter 32-bit with flags
     (22, 1): 5,  # g22v1: counter event 32-bit
     (30, 1): 5,  # g30v1: analog input 32-bit with flags
@@ -60,11 +63,13 @@ class DNP3Points:
         analog_inputs:  index -> float (g30v1, truncated to int by outstation)
         binary_inputs:  index -> bool  (g1v2)
         binary_outputs: index -> bool  (g10v2)
+        command_statuses: index -> control status (g12v1, 0 = success)
     """
 
     analog_inputs: dict[int, float] = field(default_factory=dict)
     binary_inputs: dict[int, bool] = field(default_factory=dict)
     binary_outputs: dict[int, bool] = field(default_factory=dict)
+    command_statuses: dict[int, int] = field(default_factory=dict)
 
 
 def parse_dnp3_response(data: bytes) -> DNP3Points:
@@ -162,6 +167,8 @@ def parse_dnp3_response(data: bytes) -> DNP3Points:
                 result.binary_inputs[idx] = bool(obj[0] & _STATE_BIT)
             elif group == 10 and variation == 2:  # g10v2: binary output
                 result.binary_outputs[idx] = bool(obj[0] & _STATE_BIT)
+            elif group == 12 and variation == 1:  # g12v1: control relay output block
+                result.command_statuses[idx] = obj[10]
             # Event objects (g32v1, g2v1, etc.) are skipped
 
     return result

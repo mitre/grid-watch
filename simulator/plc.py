@@ -1,6 +1,10 @@
 import argparse
 import asyncio
 import logging
+import os
+import signal
+import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -14,10 +18,11 @@ from dnp3.database import (
 from dnp3.outstation import DefaultCommandHandler, Outstation
 from dnp3.outstation.handler import CommandResult
 from dnp3.transport_io import TcpServer
-from dnp3.transport_io.channel import TcpServerConfig
+from dnp3.transport_io.channel import ChannelError, TcpServerConfig
 
+from simulator import SIM
 from simulator.config import OutstationConfig as SimulatorConfig
-from simulator.config import load_config
+from simulator.config import configure_logging, load_config, port_number
 from simulator.dnp3_frame import (
     OUTSTATION_ADDR,
     MASTER_ADDR,
@@ -26,11 +31,8 @@ from simulator.dnp3_frame import (
     encode_transport_frames,
 )
 from simulator.sim import GridProcessSim
-from simulator.ui.terminal import display_loop
+from simulator.ui.terminal import EventLog, display_loop
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
@@ -101,69 +103,91 @@ def build_database(cfg: SimulatorConfig | None = None) -> Database:
     return db
 
 
-async def command_listener(sim: GridProcessSim, db: Database) -> None:
-    import sys
-    import os
+def _interactive() -> bool:
+    """Return True when stdin is a terminal this process may read from.
 
-    # Skip the interactive command listener when stdin is not a controlling terminal
-    # or when the process is in the background (os.getpgrp() != os.tcgetpgrp(0)).
-    # This prevents SIGTTIN suspension when the server is started as a background job.
+    A background job (process group other than the terminal's) must not read
+    stdin, or it is stopped with SIGTTIN. Windows has no process groups.
+    """
     try:
-        if not sys.stdin.isatty() or os.getpgrp() != os.tcgetpgrp(sys.stdin.fileno()):
+        if not sys.stdin.isatty():
+            return False
+        if not hasattr(os, "tcgetpgrp"):
+            return True
+        return os.getpgrp() == os.tcgetpgrp(sys.stdin.fileno())
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def _handle_command(cmd: str, sim: GridProcessSim, db: Database) -> None:
+    if cmd == "pause":
+        sim.pause()
+        logger.info("Simulation paused")
+
+    elif cmd == "resume":
+        sim.resume()
+        logger.info("Simulation resumed")
+
+    elif cmd == "reset":
+        sim.reset(db)
+        logger.info("Simulation reset to initial conditions")
+
+    elif cmd == "g":
+        _pt = db.get_binary_output(1)
+        if _pt is None:
+            logger.error("binary output 1 not initialized")
             return
-    except OSError:
+        new_value = not _pt.value
+        code = ControlCode.LATCH_ON if new_value else ControlCode.LATCH_OFF
+        DatabaseCommandHandler(db)._apply_binary(1, code)
+        logger.info("%s", "Turn Generator ON" if new_value else "Turn Generator OFF")
+
+    elif cmd == "b":
+        _pt = db.get_binary_output(0)
+        if _pt is None:
+            logger.error("binary output 0 not initialized")
+            return
+        new_value = not _pt.value
+        code = ControlCode.LATCH_ON if new_value else ControlCode.LATCH_OFF
+        DatabaseCommandHandler(db)._apply_binary(0, code)
+        logger.info("%s", "Close Breaker" if new_value else "Open Breaker")
+
+    elif cmd:
+        logger.info("Unknown command: %s", cmd)
+
+
+def _read_lines(
+    loop: asyncio.AbstractEventLoop, lines: asyncio.Queue[str | None], fd: int
+) -> None:
+    while True:
+        try:
+            data = os.read(fd, 1024)
+        except OSError:
+            data = b""
+        items: list[str | None] = (
+            list(data.decode(errors="replace").splitlines()) if data else [None]
+        )
+        for item in items:
+            try:
+                loop.call_soon_threadsafe(lines.put_nowait, item)
+            except RuntimeError:
+                return
+        if not data:
+            return
+
+
+async def command_listener(sim: GridProcessSim, db: Database) -> None:
+    if not _interactive():
         return
 
-    loop = asyncio.get_running_loop()
-    try:
-        while True:
-            try:
-                cmd = await loop.run_in_executor(None, input)
-            except EOFError:
-                return
-            cmd = cmd.strip().lower()
-
-            if cmd == "pause":
-                sim.pause()
-                logger.info("Simulation paused")
-
-            elif cmd == "resume":
-                sim.resume()
-                logger.info("Simulation resumed")
-
-            elif cmd == "reset":
-                sim.reset(db)
-                logger.info("Simulation reset to initial conditions")
-
-            elif cmd == "g":
-                _pt = db.get_binary_output(1)
-                if _pt is None:
-                    logger.error("binary output 1 not initialized")
-                    continue
-                current = _pt.value
-                new_value = not current
-                code = ControlCode.LATCH_ON if new_value else ControlCode.LATCH_OFF
-                DatabaseCommandHandler(db)._apply_binary(1, code)
-                logger.info(
-                    "%s", "Turn Generator ON" if new_value else "Turn Generator OFF"
-                )
-
-            elif cmd == "b":
-                _pt = db.get_binary_output(0)
-                if _pt is None:
-                    logger.error("binary output 0 not initialized")
-                    continue
-                current = _pt.value
-                new_value = not current
-                code = ControlCode.LATCH_ON if new_value else ControlCode.LATCH_OFF
-                DatabaseCommandHandler(db)._apply_binary(0, code)
-                logger.info("%s", "Close Breaker" if new_value else "Open Breaker")
-
-            elif cmd:
-                logger.info("Unknown command: %s", cmd)
-
-    except (EOFError, asyncio.CancelledError):
-        pass
+    lines: asyncio.Queue[str | None] = asyncio.Queue()
+    threading.Thread(
+        target=_read_lines,
+        args=(asyncio.get_running_loop(), lines, sys.stdin.fileno()),
+        daemon=True,
+    ).start()
+    while (cmd := await lines.get()) is not None:
+        _handle_command(cmd.strip().lower(), sim, db)
 
 
 async def handle_connection(channel: Any, outstation: Outstation) -> None:
@@ -214,23 +238,41 @@ async def handle_connection(channel: Any, outstation: Outstation) -> None:
         await channel.close()
 
 
-async def main(config_path: Path = DEFAULT_CONFIG_PATH) -> None:  # pragma: no cover
-    cfg = load_config(config_path)
+class StartError(Exception):
+    pass
 
-    db = build_database(cfg)
-    outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
-    outstation.clear_restart()
-    db.clear_events()  # drop startup events before accepting connections
 
-    server = TcpServer(
-        config=TcpServerConfig(host=cfg.server.host, port=cfg.server.port)
-    )
-    await server.start()
+async def serve(cfg: SimulatorConfig) -> None:  # pragma: no cover
+    try:
+        db = build_database(cfg)
+        outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
+        outstation.clear_restart()
+        db.clear_events()  # drop startup events before accepting connections
+
+        server = TcpServer(
+            config=TcpServerConfig(host=cfg.server.host, port=cfg.server.port)
+        )
+        await server.start()
+    except (ChannelError, OSError, ValueError) as exc:
+        raise StartError(exc) from exc
 
     sim = GridProcessSim()
-    display_task = asyncio.create_task(display_loop(db, interval=1.0, sim=sim))
-    sim_task = asyncio.create_task(sim.run(db))
-    cmd_task = asyncio.create_task(command_listener(sim, db))
+    tasks = [
+        asyncio.create_task(sim.run(db)),
+        asyncio.create_task(command_listener(sim, db)),
+    ]
+
+    root = logging.getLogger()
+    handlers = root.handlers[:]
+    if sys.stdout.isatty():
+        events = EventLog()
+        if handlers:
+            events.setFormatter(handlers[0].formatter)
+        root.handlers = [events]
+        tasks.append(
+            asyncio.create_task(display_loop(db, interval=1.0, sim=sim, events=events))
+        )
+    logger.info("PLC listening on %s:%d", cfg.server.host, cfg.server.port)
 
     try:
         async with server:
@@ -238,14 +280,67 @@ async def main(config_path: Path = DEFAULT_CONFIG_PATH) -> None:  # pragma: no c
                 channel = await server.accept()
                 asyncio.create_task(handle_connection(channel, outstation))
     finally:
-        display_task.cancel()
-        sim_task.cancel()
-        cmd_task.cancel()
-        await asyncio.gather(display_task, sim_task, cmd_task, return_exceptions=True)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        root.handlers = handlers
+
+
+def _interrupt(signum: int, frame: object) -> None:
+    raise KeyboardInterrupt
+
+
+def main(argv: list[str] | None = None) -> int:
+    protocol = SIM["protocols"]["dnp3"]
+    parser = argparse.ArgumentParser(
+        prog="python -m simulator.plc",
+        description=f"{SIM['name']} PLC: a {protocol['name']} outstation."
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        metavar="PATH",
+        help="configuration file (default: config.yaml in the repo root)",
+    )
+    parser.add_argument(
+        "--host",
+        metavar="HOST",
+        help=f"address to bind (default: server.host in the config, {protocol['bind']})",
+    )
+    parser.add_argument(
+        "--port",
+        type=port_number,
+        metavar="PORT",
+        help=f"{protocol['name']} port (default: server.port in the config, {protocol['port']})",
+    )
+    parser.add_argument("--debug", action="store_true", help="debug logging")
+    args = parser.parse_args(argv)
+    configure_logging(args.debug)
+
+    signal.signal(signal.SIGTERM, _interrupt)
+    try:
+        cfg = load_config(args.config)
+    except (OSError, ValueError) as exc:
+        logger.error("PLC failed to start: %s", exc)
+        return 1
+    if args.host:
+        cfg.server.host = args.host
+    if args.port:
+        cfg.server.port = args.port
+    try:
+        asyncio.run(serve(cfg))
+    except KeyboardInterrupt:
+        pass
+    except StartError as exc:
+        logger.error("PLC failed to start: %s", exc)
+        return 1
+    except (ChannelError, OSError, ValueError) as exc:
+        logger.error("PLC error: %s", exc)
+        return 1
+    logger.info("Stopped")
+    return 0
 
 
 if __name__ == "__main__":  # pragma: no cover
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
-    args = parser.parse_args()
-    asyncio.run(main(config_path=args.config))
+    sys.exit(main())
