@@ -1,7 +1,3 @@
-# DNP3 plugin's action payload is a glibc-linked amd64 binary (no musl/arm64
-# build wired into its abilities), so this needs a real glibc runtime rather
-# than Alpine's musl - paired with the amd64 platform pin in docker-compose.yml.
-# Needs GLIBC_2.38+ (debian:bookworm-slim's 2.36 is too old); noble ships 2.39.
 FROM ubuntu:24.04
 
 RUN apt-get update && \

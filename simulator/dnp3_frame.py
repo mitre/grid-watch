@@ -57,7 +57,7 @@ _CTRL_SECONDARY = 0x44  # outstation -> master   (DIR=1 PRM=0 FCV=0 FCB=0 FC=4)
 
 # Default DNP3 addresses used by this simulator
 MASTER_ADDR = 3
-OUTSTATION_ADDR = 1  # matches dnp3_address in config.yaml
+OUTSTATION_ADDR = 1
 
 
 # ---------------------------------------------------------------------------

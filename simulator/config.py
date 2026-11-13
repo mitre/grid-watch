@@ -8,7 +8,6 @@ Expected schema:
     server:
       host: 0.0.0.0
       port: 20000
-      dnp3_address: 1
 
     points:
       binary_inputs:
@@ -28,11 +27,29 @@ Expected schema:
 
 from __future__ import annotations
 
+import argparse
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+
+def configure_logging(debug: bool = False) -> None:
+    logging.basicConfig(
+        format=LOG_FORMAT, level=logging.DEBUG if debug else logging.INFO
+    )
+
+
+def port_number(text: str) -> int:
+    port = int(text)
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError(f"{text} is not a port number (1-65535)")
+    return port
+
 
 # --- Dataclasses that mirror the YAML schema ---
 
@@ -66,7 +83,6 @@ class PointsDef:
 class ServerDef:
     host: str = "0.0.0.0"
     port: int = 20000
-    dnp3_address: int = 1
 
 
 @dataclass
@@ -132,13 +148,7 @@ def _parse_server(raw: Any, source: str) -> ServerDef:
             f"[{source}] server.port must be an integer 1-65535, got {port!r}"
         )
 
-    dnp3_address = raw.get("dnp3_address", 1)
-    if not isinstance(dnp3_address, int) or not (0 <= dnp3_address <= 65535):
-        raise ValueError(
-            f"[{source}] server.dnp3_address must be an integer 0-65535, got {dnp3_address!r}"
-        )
-
-    return ServerDef(host=host, port=port, dnp3_address=dnp3_address)
+    return ServerDef(host=host, port=port)
 
 
 def _parse_points(raw: Any, source: str) -> PointsDef:

@@ -18,10 +18,11 @@ from dnp3.database import (
 from dnp3.outstation import DefaultCommandHandler, Outstation
 from dnp3.outstation.handler import CommandResult
 from dnp3.transport_io import TcpServer
-from dnp3.transport_io.channel import TcpServerConfig
+from dnp3.transport_io.channel import ChannelError, TcpServerConfig
 
+from simulator import SIM
 from simulator.config import OutstationConfig as SimulatorConfig
-from simulator.config import load_config
+from simulator.config import configure_logging, load_config, port_number
 from simulator.dnp3_frame import (
     OUTSTATION_ADDR,
     MASTER_ADDR,
@@ -32,9 +33,6 @@ from simulator.dnp3_frame import (
 from simulator.sim import GridProcessSim
 from simulator.ui.terminal import EventLog, display_loop
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
@@ -240,16 +238,23 @@ async def handle_connection(channel: Any, outstation: Outstation) -> None:
         await channel.close()
 
 
-async def serve(cfg: SimulatorConfig) -> None:  # pragma: no cover
-    db = build_database(cfg)
-    outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
-    outstation.clear_restart()
-    db.clear_events()  # drop startup events before accepting connections
+class StartError(Exception):
+    pass
 
-    server = TcpServer(
-        config=TcpServerConfig(host=cfg.server.host, port=cfg.server.port)
-    )
-    await server.start()
+
+async def serve(cfg: SimulatorConfig) -> None:  # pragma: no cover
+    try:
+        db = build_database(cfg)
+        outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
+        outstation.clear_restart()
+        db.clear_events()  # drop startup events before accepting connections
+
+        server = TcpServer(
+            config=TcpServerConfig(host=cfg.server.host, port=cfg.server.port)
+        )
+        await server.start()
+    except (ChannelError, OSError, ValueError) as exc:
+        raise StartError(exc) from exc
 
     sim = GridProcessSim()
     tasks = [
@@ -267,6 +272,7 @@ async def serve(cfg: SimulatorConfig) -> None:  # pragma: no cover
         tasks.append(
             asyncio.create_task(display_loop(db, interval=1.0, sim=sim, events=events))
         )
+    logger.info("PLC listening on %s:%d", cfg.server.host, cfg.server.port)
 
     try:
         async with server:
@@ -285,15 +291,53 @@ def _interrupt(signum: int, frame: object) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
+    protocol = SIM["protocols"]["dnp3"]
+    parser = argparse.ArgumentParser(
+        prog="python -m simulator.plc",
+        description=f"{SIM['name']} PLC: a {protocol['name']} outstation."
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        metavar="PATH",
+        help="configuration file (default: config.yaml in the repo root)",
+    )
+    parser.add_argument(
+        "--host",
+        metavar="HOST",
+        help=f"address to bind (default: server.host in the config, {protocol['bind']})",
+    )
+    parser.add_argument(
+        "--port",
+        type=port_number,
+        metavar="PORT",
+        help=f"{protocol['name']} port (default: server.port in the config, {protocol['port']})",
+    )
+    parser.add_argument("--debug", action="store_true", help="debug logging")
     args = parser.parse_args(argv)
+    configure_logging(args.debug)
 
     signal.signal(signal.SIGTERM, _interrupt)
     try:
-        asyncio.run(serve(load_config(args.config)))
+        cfg = load_config(args.config)
+    except (OSError, ValueError) as exc:
+        logger.error("PLC failed to start: %s", exc)
+        return 1
+    if args.host:
+        cfg.server.host = args.host
+    if args.port:
+        cfg.server.port = args.port
+    try:
+        asyncio.run(serve(cfg))
     except KeyboardInterrupt:
         pass
+    except StartError as exc:
+        logger.error("PLC failed to start: %s", exc)
+        return 1
+    except (ChannelError, OSError, ValueError) as exc:
+        logger.error("PLC error: %s", exc)
+        return 1
     logger.info("Stopped")
     return 0
 

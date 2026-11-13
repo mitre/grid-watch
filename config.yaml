@@ -1,7 +1,6 @@
 server:
   host: "0.0.0.0"
   port: 20000
-  dnp3_address: 1
 
 points:
   binary_inputs:

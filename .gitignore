@@ -1,31 +1,39 @@
+# macOS
+.DS_Store
+
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
 build/
+dist/
 
+# Virtual environments
 .venv/
 venv/
 env/
+ENV/
+.python-version
 
+# Tests and linters
 .pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
 
-.DS_Store
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs
+*.log
+
+# Local environment
 .env
-.python-version
-.ci_venv_*/
-.claude/
-
-# Cloned Caldera repo (from local dev setup)
-caldera/
-
-# Scenario run outputs (JSON results and pcap captures)
-tests/scenarios/*.json
-tests/scenarios/captures/
 
 # Wireshark captures
 docker/captures/*

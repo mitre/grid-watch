@@ -341,15 +341,18 @@ def draw_status(ax: Axes, s: GridState) -> None:
         y -= 0.11
 
 
-def _webagg_fill_window():
+def _webagg_fill_window(title: str) -> None:
     # Size the WebAgg figure to the browser window instead of a fixed canvas
     # that scrolls. mpl.js already re-renders the figure when its canvas
     # container resizes, so we just size that container to the window.
     import io
+    import json
+
     from matplotlib.backends import backend_webagg_core as wac
 
     js = """
 (function(){
+  document.title=TITLE;
   function fit(){
     var c=document.querySelector('.mpl-canvas');if(!c)return false;
     var cd=c.parentElement;
@@ -375,7 +378,7 @@ def _webagg_fill_window():
     def patched(cls, stream=None):
         buf = io.StringIO()
         orig(cls, buf)
-        out = buf.getvalue() + js
+        out = buf.getvalue() + js.replace("TITLE", json.dumps(title))
         if stream is None:
             return out
         stream.write(out)

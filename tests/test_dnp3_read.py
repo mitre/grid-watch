@@ -379,6 +379,26 @@ def test_truncated_before_0x01_range_returns_empty():
     assert pts.binary_outputs == {}
 
 
+def test_parse_direct_operate_response_status():
+    """The CROB echoed in an operate response carries the control status."""
+    from dnp3.master import Master
+    from dnp3.outstation import Outstation
+
+    from simulator.plc import DatabaseCommandHandler, build_database
+
+    db = build_database()
+    outstation = Outstation(database=db, handler=DatabaseCommandHandler(db))
+    outstation.clear_restart()
+
+    for index, expected in ((0, 0), (9, 4)):
+        master = Master()
+        builder = master.command_builder()
+        builder.latch_off(index=index)
+        request = master.build_direct_operate(builder.build_direct_operate())
+        response = outstation.process_request(request.to_bytes())[0].to_bytes()
+        assert parse_dnp3_response(response).command_statuses == {index: expected}
+
+
 # ---------------------------------------------------------------------------
 # Integration test — requires the simulator server on 127.0.0.1:20000
 # ---------------------------------------------------------------------------

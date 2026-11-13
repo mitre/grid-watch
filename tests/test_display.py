@@ -583,6 +583,44 @@ async def test_display_loop_shows_events(capsys):
 # --- main ---
 
 
+def test_main_missing_config_exits_1(tmp_path, monkeypatch, caplog):
+    from simulator import plc
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    with caplog.at_level("ERROR"):
+        assert plc.main(["--config", str(tmp_path / "missing.yaml")]) == 1
+    assert "PLC failed to start" in caplog.text
+
+
+def test_main_bind_error_exits_1(monkeypatch, caplog):
+    from simulator import plc
+
+    async def _fail(cfg):
+        raise plc.StartError("Failed to start server: address already in use")
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _fail)
+    with caplog.at_level("ERROR"):
+        assert plc.main([]) == 1
+    assert "PLC failed to start" in caplog.text
+
+
+def test_main_runtime_error_exits_1(monkeypatch, caplog):
+    from simulator import plc
+
+    async def _fail(cfg):
+        from dnp3.transport_io.channel import ChannelError
+
+        raise ChannelError("accept failed")
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _fail)
+    with caplog.at_level("ERROR"):
+        assert plc.main([]) == 1
+    assert "PLC error: accept failed" in caplog.text
+    assert "failed to start" not in caplog.text
+
+
 def test_main_interrupt_exits_0(monkeypatch, caplog):
     from simulator import plc
 
@@ -601,3 +639,58 @@ def test_sigterm_handler_raises_keyboard_interrupt():
 
     with pytest.raises(KeyboardInterrupt):
         _interrupt(15, None)
+
+
+def test_main_host_and_port_override_config(monkeypatch):
+    from simulator import plc
+
+    seen = {}
+
+    async def _capture(cfg):
+        seen["host"], seen["port"] = cfg.server.host, cfg.server.port
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _capture)
+    assert plc.main(["--host", "127.0.0.1", "--port", "20001"]) == 0
+    assert seen == {"host": "127.0.0.1", "port": 20001}
+
+
+def test_main_defaults_come_from_config(monkeypatch):
+    from simulator import SIM, plc
+
+    seen = {}
+
+    async def _capture(cfg):
+        seen["host"], seen["port"] = cfg.server.host, cfg.server.port
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _capture)
+    assert plc.main([]) == 0
+    dnp3 = SIM["protocols"]["dnp3"]
+    assert seen == {"host": dnp3["bind"], "port": dnp3["port"]}
+
+
+@pytest.mark.parametrize("text", ["0", "65536", "port"])
+def test_main_rejects_bad_port(text):
+    from simulator import plc
+
+    with pytest.raises(SystemExit) as exc:
+        plc.main(["--port", text])
+    assert exc.value.code == 2
+
+
+def test_configure_logging_levels(monkeypatch):
+    import logging
+
+    from simulator.config import LOG_FORMAT, configure_logging
+
+    calls = []
+    monkeypatch.setattr(logging, "basicConfig", lambda **kwargs: calls.append(kwargs))
+    configure_logging()
+    configure_logging(debug=True)
+    assert calls == [
+        {"format": LOG_FORMAT, "level": logging.INFO},
+        {"format": LOG_FORMAT, "level": logging.DEBUG},
+    ]

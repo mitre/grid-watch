@@ -12,7 +12,7 @@ WAIT=0
 until curl -sf "${CALDERA_SERVER}" >/dev/null 2>&1; do
     WAIT=$((WAIT + 1))
     if [ "${WAIT}" -ge 40 ]; then
-        echo "[agent] Caldera server not reachable after 40 attempts — giving up"
+        echo "[agent] Caldera server not reachable after 40 attempts - giving up"
         exit 1
     fi
     sleep 3
