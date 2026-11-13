@@ -23,7 +23,8 @@ Supported qualifiers:
 Analog values are truncated to int32 by the outstation's g30v1 encoding,
 so voltage reads as a whole-number kV (e.g. 12 instead of 12.47).
 
-This module replaces the broken qualifier parsing in the dnp3py library.
+dnp3py's Master does not decode these responses correctly, so the HMI and
+the test client use this parser instead.
 """
 
 from __future__ import annotations

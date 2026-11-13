@@ -14,7 +14,8 @@
 Run a multi-step sequence over both DNP3 command paths, DIRECT_OPERATE and
 SELECT_BEFORE_OPERATE. Stop the generator and trip the breaker, restore both,
 then trip the breaker again over SELECT_BEFORE_OPERATE. The outstation runs
-every command without authentication.
+every command without authentication. Start with the breaker closed and the
+generator on (use the HMI buttons).
 
 ![Grid Watch HMI grid disruption state](../images/scenario-3-grid-disruption.png)
 
@@ -33,7 +34,10 @@ every command without authentication.
 ## Caldera Operation
 
 Load `docs/sources/grid-watch-simulator-facts.yml` as the fact source, then
-build an operation using the following abilities in order:
+build an operation using the following abilities in order. If you run the
+adversary instead, Caldera runs each Operate step once for every combination of
+`dnp3.operate.indices`, `dnp3.operate.mode` and `dnp3.operate.type` in the fact
+source, which ends with the breaker and the generator latched on.
 
 | Step | Ability | Ability ID | Facts Used |
 |------|---------|------------|------------|
@@ -47,12 +51,11 @@ build an operation using the following abilities in order:
 
 ## Expected Observations
 
-- The generator stops and voltage collapses to about 0.05 kV as the deficit rises to full load.
-- The breaker opens and voltage stays at about 0.05 kV, a full blackout.
-- The restore commands bring the grid back to its normal operating range.
-- SELECT_BEFORE_OPERATE runs without challenge and voltage collapses a second time.
-- The final integrity poll shows the disrupted state.
-- The outstation accepts every operate command without authentication, over both DIRECT_OPERATE and SELECT_BEFORE_OPERATE.
+- Every Operate step prints `Result Summary: SUCCESS`, over DIRECT_OPERATE and SELECT_BEFORE_OPERATE alike. The outstation asks for no authentication.
+- After steps 2 and 3 the HMI shows the generator off and the breaker open, the voltage trace falls to 0 kV and the deficit rises to the whole load.
+- After steps 4 and 5 the voltage climbs back to 10 to 12 kV within about 10 seconds.
+- After step 6 the breaker is open again and the voltage falls to 0 kV.
+- The final integrity poll shows `BO[0]` at 0, `BO[1]` at 1, `AI[0]` falling to 0 kV and `AI[1]` at the whole load, 100 to 1500 kW. DNP3 reports analog values as whole numbers.
 
 ## See Also
 

@@ -13,7 +13,9 @@
 
 Send DIRECT_OPERATE commands to trip the breaker and stop the generator. The
 outstation runs both without authentication and the grid simulation reacts at
-once: bus voltage collapses and the power deficit rises.
+once: bus voltage collapses and the power deficit rises. Start with the
+breaker closed and the generator on (use the HMI buttons) so there is
+something to disrupt.
 
 ![Grid Watch HMI unauthorized control state](../images/scenario-2-unauthorized-control.png)
 
@@ -32,7 +34,10 @@ once: bus voltage collapses and the power deficit rises.
 ## Caldera Operation
 
 Load `docs/sources/grid-watch-simulator-facts.yml` as the fact source, then
-build an operation using the following abilities in order:
+build an operation using the following abilities in order. If you run the
+adversary instead, Caldera runs each Operate step once for every combination of
+`dnp3.operate.indices`, `dnp3.operate.mode` and `dnp3.operate.type` in the fact
+source, which ends with the breaker and the generator latched on.
 
 | Step | Ability | Ability ID | Facts Used |
 |------|---------|------------|------------|
@@ -43,10 +48,11 @@ build an operation using the following abilities in order:
 
 ## Expected Observations
 
-- The breaker trips: `BO[0]` goes to LATCH_OFF and `AI[0]` collapses from roughly 10 to 12 kV down to about 0.05 kV.
-- The generator stops: `BO[1]` goes to LATCH_OFF and `AI[1]` rises to full load, about 800+ kW.
-- The integrity poll confirms the disrupted grid state.
-- The outstation accepts every command without authentication.
+- Each Operate step prints `Result Summary: SUCCESS`. The outstation accepts the commands without authentication, and the PLC logs `CONTROL: BO[0] <- False (code=LATCH_OFF)` and `CONTROL: BO[1] <- False (code=LATCH_OFF)`.
+- The final integrity poll shows `BO[0]`, `BO[1]`, `BI[0]` and `BI[1]` at 0.
+- `AI[0]` falls from 10 to 12 kV to 0 kV within about 10 seconds. DNP3 reports analog values as whole numbers.
+- `AI[1]` rises to the whole load, 100 to 1500 kW.
+- The HMI shows the breaker open, the generator off and the voltage trace dropping to zero.
 
 ## See Also
 
