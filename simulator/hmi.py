@@ -5,8 +5,8 @@ commands over DNP3 DIRECT_OPERATE. All traffic is link-layer framed so it
 is visible in Wireshark on port 20000.
 
 Usage:
-    python run.py          (option 2)
-    python -m simulator.hmi [--host 127.0.0.1] [--port 20000] [--web] [--web-port 8090]
+    python run.py
+    python -m simulator.hmi [--host 127.0.0.1] [--port 20000] [--web] [--web-port 8090] [--debug]
 """
 
 from __future__ import annotations
@@ -15,25 +15,21 @@ import argparse
 import asyncio
 import logging
 import queue
-import sys
+import signal
 import threading
 import time
+import warnings
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
 import matplotlib
 
-if "--web" in sys.argv:
-    matplotlib.use("WebAgg")
-
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-from matplotlib.widgets import Button
-
 from dnp3.master import Master
 from dnp3.transport_io.channel import TcpConfig
 from dnp3.transport_io.tcp_client import TcpClientChannel
+from simulator import SIM
+from simulator.config import configure_logging, port_number
 from simulator.dnp3_frame import (
     MASTER_ADDR,
     OUTSTATION_ADDR,
@@ -50,11 +46,10 @@ from simulator.ui.desktop_ui import (
 )
 
 POLL_INTERVAL = 1.0
+PROTOCOL = SIM["protocols"]["dnp3"]
+TITLE = f"{PROTOCOL['name']} - {SIM['name']}"
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
-logger = logging.getLogger("hmi")
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -154,9 +149,25 @@ async def command_sender(
             await channel.write_all(
                 encode_frame(req.to_bytes(), dest=OUTSTATION_ADDR, src=MASTER_ADDR)
             )
-            raw = await asyncio.wait_for(channel.read(4096), timeout=2.0)
-            decode_frame(raw)  # strip framing; response not inspected by HMI
-            logger.info("DIRECT_OPERATE %s -> %s", point, "ON" if on else "OFF")
+            raw = b""
+            while True:
+                chunk = await asyncio.wait_for(channel.read(4096), timeout=2.0)
+                if not chunk:
+                    raise ConnectionError("outstation closed connection")
+                raw += chunk
+                app = decode_frame(raw)
+                if app and app[0] & 0x40:  # FIN bit
+                    break
+            status = parse_dnp3_response(app).command_statuses.get(index)
+            if status == 0:
+                logger.info("DIRECT_OPERATE %s -> %s", point, "ON" if on else "OFF")
+            else:
+                logger.error(
+                    "DIRECT_OPERATE %s -> %s rejected (status %s)",
+                    point,
+                    "ON" if on else "OFF",
+                    status,
+                )
         except Exception as e:
             logger.error("Command failed (%s=%s): %s", point, on, e)
         finally:
@@ -177,19 +188,67 @@ async def run_io(
     )
 
 
+def _interrupt(signum: int, frame: object) -> None:
+    raise KeyboardInterrupt
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Live HMI for DNP3 grid simulator")
-    parser.add_argument("--host", default="127.0.0.1", help="Outstation host")
-    parser.add_argument("--port", type=int, default=20000, help="DNP3 port")
-    parser.add_argument("--web", action="store_true", help="Serve the HMI in a browser (WebAgg)")
-    parser.add_argument("--web-port", type=int, default=8090, help="Web HMI port (default 8090)")
+    parser = argparse.ArgumentParser(
+        prog="python -m simulator.hmi",
+        description=f"{SIM['name']} HMI: polls the outstation over {PROTOCOL['name']}."
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        metavar="HOST",
+        help="PLC to poll (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--port",
+        type=port_number,
+        default=PROTOCOL["port"],
+        metavar="PORT",
+        help=f"PLC port (default: {PROTOCOL['port']})",
+    )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="serve the HMI as a web page instead of a desktop window",
+    )
+    parser.add_argument(
+        "--web-port",
+        type=port_number,
+        default=8090,
+        metavar="PORT",
+        help="web HMI port (default: 8090)",
+    )
+    parser.add_argument("--debug", action="store_true", help="debug logging")
     args = parser.parse_args()
+    configure_logging(args.debug)
 
     if args.web:
-        plt.rcParams["webagg.address"] = "0.0.0.0"
-        plt.rcParams["webagg.port"] = args.web_port
-        plt.rcParams["webagg.open_in_browser"] = False
-        _webagg_fill_window()
+        matplotlib.use("WebAgg")
+        matplotlib.rcParams["webagg.address"] = "0.0.0.0"
+        matplotlib.rcParams["webagg.port"] = args.web_port
+        matplotlib.rcParams["webagg.open_in_browser"] = False
+        logging.getLogger("tornado.access").setLevel(logging.WARNING)
+        _webagg_fill_window(TITLE)
+        warnings.filterwarnings(
+            "ignore", message="Animation was deleted without rendering anything"
+        )
+
+        from matplotlib.backends.backend_webagg import WebAggApplication
+
+        try:
+            WebAggApplication.initialize()
+        except (OSError, SystemExit) as exc:
+            logger.error("Web HMI could not start on port %d: %s", args.web_port, exc)
+            raise SystemExit(1)
+        logger.info("Web HMI at http://0.0.0.0:%d", WebAggApplication.port)
+
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
+    from matplotlib.widgets import Button
 
     state = GridState()
     lock = threading.Lock()
@@ -199,8 +258,9 @@ def main() -> None:
         asyncio.run(run_io(state, lock, cmd_q, host=args.host, port=args.port))
 
     threading.Thread(target=run_loop, daemon=True).start()
+    logger.info("Polling PLC at %s:%d", args.host, args.port)
 
-    fig = plt.figure(figsize=(14, 9))
+    fig = plt.figure(num=TITLE, figsize=(14, 9))
     fig.suptitle("DNP3 Grid HMI", fontsize=15, fontweight="bold")
     gs = fig.add_gridspec(3, 4, height_ratios=[3, 3, 0.6], hspace=0.45, wspace=0.35)
     ax_schematic = fig.add_subplot(gs[0, 0:2])
@@ -265,7 +325,12 @@ def main() -> None:
         return []
 
     _anim = FuncAnimation(fig, update, interval=500, cache_frame_data=False)
-    plt.show()
+    signal.signal(signal.SIGTERM, _interrupt)
+    try:
+        plt.show()
+    except KeyboardInterrupt:
+        pass
+    logger.info("Stopped")
 
 
 if __name__ == "__main__":

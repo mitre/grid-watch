@@ -12,6 +12,7 @@ from simulator.plc import (
     handle_connection,
 )
 from simulator.ui.terminal import (
+    EventLog,
     _fmt_row,
     _quality_str,
     _render_display,
@@ -409,6 +410,38 @@ async def test_handle_connection_transport_header_stripped():
 # --- command_listener ---
 
 
+class _MockStdin:
+    def isatty(self) -> bool:
+        return True
+
+    def fileno(self) -> int:
+        return 0
+
+
+def _feed(monkeypatch, commands):
+    from simulator import plc
+
+    data = "".join(command + "\n" for command in commands).encode()
+    chunks = iter([data, OSError("closed")])
+
+    def mock_read(fd: int, size: int) -> bytes:
+        chunk = next(chunks)
+        if isinstance(chunk, Exception):
+            raise chunk
+        return chunk
+
+    monkeypatch.setattr(plc.os, "read", mock_read)
+
+
+def _foreground(monkeypatch):
+    import os as _os
+    import sys as _sys
+
+    monkeypatch.setattr(_sys, "stdin", _MockStdin())
+    monkeypatch.setattr(_os, "getpgrp", lambda: 0, raising=False)
+    monkeypatch.setattr(_os, "tcgetpgrp", lambda fd: 0, raising=False)
+
+
 @pytest.mark.asyncio
 async def test_command_listener_exits_when_not_tty(monkeypatch):
     """When stdin is not a tty, command_listener returns immediately."""
@@ -418,7 +451,6 @@ async def test_command_listener_exits_when_not_tty(monkeypatch):
 
     db = build_database()
     sim = GridProcessSim()
-    # Should return without blocking
     await command_listener(sim, db)
 
 
@@ -437,100 +469,228 @@ async def test_command_listener_exits_on_os_error(monkeypatch):
     await command_listener(sim, db)
 
 
+def test_interactive_without_stdin(monkeypatch):
+    import sys as _sys
+
+    from simulator.plc import _interactive
+
+    monkeypatch.setattr(_sys, "stdin", None)
+    assert _interactive() is False
+
+
+def test_interactive_in_background(monkeypatch):
+    import os as _os
+    import sys as _sys
+
+    from simulator.plc import _interactive
+
+    monkeypatch.setattr(_sys, "stdin", _MockStdin())
+    monkeypatch.setattr(_os, "getpgrp", lambda: 1, raising=False)
+    monkeypatch.setattr(_os, "tcgetpgrp", lambda fd: 2, raising=False)
+    assert _interactive() is False
+
+
+def test_interactive_without_process_groups(monkeypatch):
+    """Windows has no os.tcgetpgrp; a console stdin is still interactive."""
+    import os as _os
+    import sys as _sys
+
+    from simulator.plc import _interactive
+
+    monkeypatch.setattr(_sys, "stdin", _MockStdin())
+    monkeypatch.delattr(_os, "tcgetpgrp", raising=False)
+    assert _interactive() is True
+
+
 @pytest.mark.asyncio
 async def test_command_listener_processes_all_commands(monkeypatch):
     """With a mocked tty, command_listener processes each command branch."""
-    import builtins
-    import sys as _sys
-    import os as _os
-
-    commands = iter(["pause", "resume", "reset", "g", "b", "xyz"])
-
-    def mock_input() -> str:
-        try:
-            return next(commands)
-        except StopIteration:
-            raise EOFError
-
-    class _MockStdin:
-        def isatty(self) -> bool:
-            return True
-
-        def fileno(self) -> int:
-            return 0
-
-    monkeypatch.setattr(_sys, "stdin", _MockStdin())
-    monkeypatch.setattr(_os, "getpgrp", lambda: 0)
-    monkeypatch.setattr(_os, "tcgetpgrp", lambda fd: 0)
-    monkeypatch.setattr(builtins, "input", mock_input)
+    _foreground(monkeypatch)
+    _feed(monkeypatch, ["pause", "resume", "reset", "g", "b", "xyz"])
 
     db = build_database()
     sim = GridProcessSim()
-    await command_listener(sim, db)
+    await asyncio.wait_for(command_listener(sim, db), timeout=5)
     # After "pause" then "resume", the sim should not be paused
     assert sim.paused is False
+    assert db.get_binary_output(0).value is True
+    assert db.get_binary_output(1).value is True
 
 
 @pytest.mark.asyncio
 async def test_command_listener_missing_binary_outputs(monkeypatch, caplog):
     """'g' and 'b' log an error and continue when binary output points are absent."""
-    import builtins
-    import sys as _sys
-    import os as _os
     from dnp3.database import Database
 
-    commands = iter(["g", "b"])
-
-    def mock_input() -> str:
-        try:
-            return next(commands)
-        except StopIteration:
-            raise EOFError
-
-    class _MockStdin:
-        def isatty(self) -> bool:
-            return True
-
-        def fileno(self) -> int:
-            return 0
-
-    monkeypatch.setattr(_sys, "stdin", _MockStdin())
-    monkeypatch.setattr(_os, "getpgrp", lambda: 0)
-    monkeypatch.setattr(_os, "tcgetpgrp", lambda fd: 0)
-    monkeypatch.setattr(builtins, "input", mock_input)
+    _foreground(monkeypatch)
+    _feed(monkeypatch, ["g", "b"])
 
     db = Database()
     sim = GridProcessSim()
     with caplog.at_level("ERROR"):
-        await command_listener(sim, db)
+        await asyncio.wait_for(command_listener(sim, db), timeout=5)
 
     assert "binary output 1 not initialized" in caplog.text
     assert "binary output 0 not initialized" in caplog.text
 
 
-@pytest.mark.asyncio
-async def test_command_listener_handles_cancellation(monkeypatch):
-    """asyncio.CancelledError from run_in_executor is caught by outer except."""
-    import sys as _sys
-    import os as _os
+def test_read_lines_stops_when_loop_is_closed(monkeypatch):
+    """The stdin thread exits quietly once the event loop has gone away."""
+    from simulator.plc import _read_lines
 
-    class _MockStdin:
-        def isatty(self) -> bool:
-            return True
+    _feed(monkeypatch, ["pause"])
+    loop = asyncio.new_event_loop()
+    loop.close()
+    lines: asyncio.Queue = asyncio.Queue()
+    _read_lines(loop, lines, 0)
+    assert lines.empty()
 
-        def fileno(self) -> int:
-            return 0
 
-    class _MockLoop:
-        async def run_in_executor(self, executor: object, func: object) -> str:
-            raise asyncio.CancelledError()
+# --- EventLog ---
 
-    monkeypatch.setattr(_sys, "stdin", _MockStdin())
-    monkeypatch.setattr(_os, "getpgrp", lambda: 0)
-    monkeypatch.setattr(_os, "tcgetpgrp", lambda fd: 0)
-    monkeypatch.setattr(asyncio, "get_running_loop", lambda: _MockLoop())
 
+def test_event_log_keeps_latest_lines():
+    import logging
+
+    events = EventLog(size=2)
+    events.setFormatter(logging.Formatter("%(message)s"))
+    for text in ("one", "two", "three"):
+        events.emit(logging.makeLogRecord({"msg": text}))
+    assert list(events.lines) == ["two", "three"]
+
+
+def test_render_display_shows_events(capsys):
     db = build_database()
-    sim = GridProcessSim()
-    # Should complete normally — CancelledError is caught by the outer except
-    await command_listener(sim, db)
+    _render_display(db, {}, events=["CONTROL: BO[0] <- False"])
+    out = capsys.readouterr().out
+    assert "Events" in out
+    assert "CONTROL: BO[0] <- False" in out
+
+
+@pytest.mark.asyncio
+async def test_display_loop_shows_events(capsys):
+    db = build_database()
+    events = EventLog()
+    events.lines.append("Client connected: 127.0.0.1:9999")
+    task = asyncio.create_task(display_loop(db, interval=0.01, events=events))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert "Client connected: 127.0.0.1:9999" in capsys.readouterr().out
+
+
+# --- main ---
+
+
+def test_main_missing_config_exits_1(tmp_path, monkeypatch, caplog):
+    from simulator import plc
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    with caplog.at_level("ERROR"):
+        assert plc.main(["--config", str(tmp_path / "missing.yaml")]) == 1
+    assert "PLC failed to start" in caplog.text
+
+
+def test_main_bind_error_exits_1(monkeypatch, caplog):
+    from simulator import plc
+
+    async def _fail(cfg):
+        raise plc.StartError("Failed to start server: address already in use")
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _fail)
+    with caplog.at_level("ERROR"):
+        assert plc.main([]) == 1
+    assert "PLC failed to start" in caplog.text
+
+
+def test_main_runtime_error_exits_1(monkeypatch, caplog):
+    from simulator import plc
+
+    async def _fail(cfg):
+        from dnp3.transport_io.channel import ChannelError
+
+        raise ChannelError("accept failed")
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _fail)
+    with caplog.at_level("ERROR"):
+        assert plc.main([]) == 1
+    assert "PLC error: accept failed" in caplog.text
+    assert "failed to start" not in caplog.text
+
+
+def test_main_interrupt_exits_0(monkeypatch, caplog):
+    from simulator import plc
+
+    async def _interrupted(cfg):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _interrupted)
+    with caplog.at_level("INFO"):
+        assert plc.main([]) == 0
+    assert "Stopped" in caplog.text
+
+
+def test_sigterm_handler_raises_keyboard_interrupt():
+    from simulator.plc import _interrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        _interrupt(15, None)
+
+
+def test_main_host_and_port_override_config(monkeypatch):
+    from simulator import plc
+
+    seen = {}
+
+    async def _capture(cfg):
+        seen["host"], seen["port"] = cfg.server.host, cfg.server.port
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _capture)
+    assert plc.main(["--host", "127.0.0.1", "--port", "20001"]) == 0
+    assert seen == {"host": "127.0.0.1", "port": 20001}
+
+
+def test_main_defaults_come_from_config(monkeypatch):
+    from simulator import SIM, plc
+
+    seen = {}
+
+    async def _capture(cfg):
+        seen["host"], seen["port"] = cfg.server.host, cfg.server.port
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(plc.signal, "signal", lambda *args: None)
+    monkeypatch.setattr(plc, "serve", _capture)
+    assert plc.main([]) == 0
+    dnp3 = SIM["protocols"]["dnp3"]
+    assert seen == {"host": dnp3["bind"], "port": dnp3["port"]}
+
+
+@pytest.mark.parametrize("text", ["0", "65536", "port"])
+def test_main_rejects_bad_port(text):
+    from simulator import plc
+
+    with pytest.raises(SystemExit) as exc:
+        plc.main(["--port", text])
+    assert exc.value.code == 2
+
+
+def test_configure_logging_levels(monkeypatch):
+    import logging
+
+    from simulator.config import LOG_FORMAT, configure_logging
+
+    calls = []
+    monkeypatch.setattr(logging, "basicConfig", lambda **kwargs: calls.append(kwargs))
+    configure_logging()
+    configure_logging(debug=True)
+    assert calls == [
+        {"format": LOG_FORMAT, "level": logging.INFO},
+        {"format": LOG_FORMAT, "level": logging.DEBUG},
+    ]

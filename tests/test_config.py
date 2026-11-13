@@ -1,7 +1,7 @@
 """Tests for YAML configuration loading
 Covers:
 - Binary/analog inputs and binary outputs defined in YAML
-- Server host, port, and dnp3_address configurable
+- Server host and port configurable
 - Config applied to database on startup
 - Invalid config produces clear error messages
 """
@@ -33,7 +33,6 @@ VALID_YAML = """
 server:
   host: 0.0.0.0
   port: 20000
-  dnp3_address: 1
 
 points:
   binary_inputs:
@@ -68,11 +67,6 @@ def test_load_config_server_host(tmp_path):
 def test_load_config_server_port(tmp_path):
     cfg = load_config(write_yaml(tmp_path, VALID_YAML))
     assert cfg.server.port == 20000
-
-
-def test_load_config_server_dnp3_address(tmp_path):
-    cfg = load_config(write_yaml(tmp_path, VALID_YAML))
-    assert cfg.server.dnp3_address == 1
 
 
 def test_load_config_binary_inputs_count(tmp_path):
@@ -115,7 +109,6 @@ def test_load_config_missing_binary_outputs_defaults_to_empty(tmp_path):
 server:
   host: 127.0.0.1
   port: 19999
-  dnp3_address: 2
 points:
   binary_inputs:
     - index: 0
@@ -135,7 +128,6 @@ points:
     cfg = load_config(write_yaml(tmp_path, yaml))
     assert cfg.server.host == "0.0.0.0"
     assert cfg.server.port == 20000
-    assert cfg.server.dnp3_address == 1
 
 
 def test_load_config_custom_host_and_port(tmp_path):
@@ -143,7 +135,6 @@ def test_load_config_custom_host_and_port(tmp_path):
 server:
   host: 192.168.1.100
   port: 19999
-  dnp3_address: 5
 points:
   binary_inputs: []
   analog_inputs: []
@@ -151,7 +142,6 @@ points:
     cfg = load_config(write_yaml(tmp_path, yaml))
     assert cfg.server.host == "192.168.1.100"
     assert cfg.server.port == 19999
-    assert cfg.server.dnp3_address == 5
 
 
 # --- build_database — config applied correctly ---
@@ -243,7 +233,6 @@ def test_load_config_invalid_port_too_high_raises_value_error(tmp_path):
 server:
   host: 0.0.0.0
   port: 99999
-  dnp3_address: 1
 points:
   binary_inputs: []
   analog_inputs: []
@@ -269,7 +258,6 @@ def test_load_config_invalid_host_empty_raises_value_error(tmp_path):
 server:
   host: ""
   port: 20000
-  dnp3_address: 1
 points:
   binary_inputs: []
   analog_inputs: []
@@ -398,20 +386,6 @@ points:
   analog_inputs: []
 """
     with pytest.raises(ValueError, match="'server' must be a mapping"):
-        load_config(write_yaml(tmp_path, yaml))
-
-
-def test_load_config_invalid_dnp3_address_raises_value_error(tmp_path):
-    yaml = """
-server:
-  host: 0.0.0.0
-  port: 20000
-  dnp3_address: -1
-points:
-  binary_inputs: []
-  analog_inputs: []
-"""
-    with pytest.raises(ValueError, match="server.dnp3_address"):
         load_config(write_yaml(tmp_path, yaml))
 
 
